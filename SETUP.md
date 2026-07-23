@@ -33,23 +33,34 @@ un repo por producto `valtx-<producto>`.
 ```bash
 cd "c:/Users/antho/Documents/Anthony/Valtx/valtx-sdd"
 
-# 1. Crear la org  ⟶ TÚ (web): https://github.com/organizations/plan  -> "valtx"
+# 1. Org ya creada: "valtx-ia-test" (eres owner).
+#    Crea los equipos para CODEOWNERS (Fase D)  ⟶ TÚ (web):
+#    Org → Teams → New team → "legal"  y  "arquitectura"
 
 # 2. Governance repo = este scaffold
-gh repo create valtx/valtx-governance --private --source . --remote origin --push
+git branch -M main
+gh repo create valtx-ia-test/valtx-governance --private --source . --remote origin --push
 
 # 3. Cargar secrets (usa TUS keys)  ⟶ TÚ
-gh secret set ANTHROPIC_API_KEY   --repo valtx/valtx-governance   # sk-ant-...
-gh secret set OPENAI_API_KEY      --repo valtx/valtx-governance   # sk-...
-gh secret set LINEAR_API_KEY      --repo valtx/valtx-governance
-gh secret set NOTION_TOKEN        --repo valtx/valtx-governance
-gh secret set GCP_SA_KEY          --repo valtx/valtx-governance < gcp-sa.json  # Vertex
+gh secret set ANTHROPIC_API_KEY   --repo valtx-ia-test/valtx-governance   # sk-ant-...
+gh secret set OPENAI_API_KEY      --repo valtx-ia-test/valtx-governance   # sk-...
+gh secret set LINEAR_API_KEY      --repo valtx-ia-test/valtx-governance
+gh secret set NOTION_TOKEN        --repo valtx-ia-test/valtx-governance
+gh secret set GCP_SA_KEY          --repo valtx-ia-test/valtx-governance < gcp-sa.json  # Vertex
 # PAT para que Notion/Linear puedan disparar la CI (repository_dispatch):
-gh secret set DISPATCH_PAT        --repo valtx/valtx-governance
+gh secret set DISPATCH_PAT        --repo valtx-ia-test/valtx-governance
 ```
 
-> Para escala: define los secrets a nivel de **Organization** (Settings → Secrets →
-> Actions) y todos los repos `valtx-*` los heredan. Hazlo una vez.
+> **Para escala (recomendado):** como eres owner de la org, carga los secrets UNA vez
+> a nivel de organización y todos los repos `valtx-ia-test/*` los heredan:
+> ```bash
+> gh secret set ANTHROPIC_API_KEY --org valtx-ia-test --visibility all
+> gh secret set OPENAI_API_KEY    --org valtx-ia-test --visibility all
+> gh secret set LINEAR_API_KEY    --org valtx-ia-test --visibility all
+> gh secret set NOTION_TOKEN      --org valtx-ia-test --visibility all
+> gh secret set DISPATCH_PAT      --org valtx-ia-test --visibility all
+> ```
+> Así, al crear `valtx-ia-test/valtx-<producto>` no repites nada.
 
 ---
 
@@ -72,8 +83,8 @@ uvx specify run /speckit.specify "check-in por geolocalización"   # genera spec
 # 1. CODEOWNERS: el abogado revisa TODA la normativa
 cat > .github/CODEOWNERS <<'EOF'
 # Gobierno normativo — requiere revisión legal
-/.specify/memory/policies/   @valtx/legal
-/.specify/memory/constitution.md   @valtx/arquitectura
+/.specify/memory/policies/   @valtx-ia-test/legal
+/.specify/memory/constitution.md   @valtx-ia-test/arquitectura
 EOF
 git add .github/CODEOWNERS && git commit -m "add CODEOWNERS" && git push
 
@@ -103,7 +114,7 @@ Objetivo: crear una página de feature en Notion dispara la CI.
 export default {
   async fetch(req, env) {
     const p = await req.json();
-    await fetch("https://api.github.com/repos/valtx/valtx-governance/dispatches", {
+    await fetch("https://api.github.com/repos/valtx-ia-test/valtx-governance/dispatches", {
       method: "POST",
       headers: { Authorization: `token ${env.DISPATCH_PAT}`,
                  "Accept": "application/vnd.github+json",
