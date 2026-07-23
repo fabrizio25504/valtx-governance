@@ -1,0 +1,19 @@
+id: POL-PE-REGISTRO-008
+titulo: Inscripción de banco de datos (RNPDP)
+enforcement: MUST
+triggers:
+- nueva_bd
+- nuevo_producto
+- nuevo_sistema
+- pii
+requisito: Inscribir cada banco de datos personales en el Registro Nacional de Protección de Datos Personales
+  (RNPDP/SIPDP) ANTES de iniciar el tratamiento. La inscripción es gratuita.
+fuente: Ley 29733 Art. 34 (Registro Nacional; no inscribir = infracción grave)
+source_url: https://diariooficial.elperuano.pe/Normas/obtenerDocumento?idNorma=23
+patron_ears: WHEN se crea un nuevo banco de datos con datos personales THE SYSTEM SHALL bloquear el go-live
+  hasta registrar su inscripción en el RNPDP.
+mapea_principio: PRIN-PRIV-001
+fecha_revision: '2025-03-30'
+vigencia_hasta: '2027-03-30'
+owner: legal@valtx.pe
+jurisdiccion: PE

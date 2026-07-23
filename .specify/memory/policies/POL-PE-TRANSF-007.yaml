@@ -1,0 +1,23 @@
+id: POL-PE-TRANSF-007
+titulo: Flujo transfronterizo de datos
+enforcement: MUST
+triggers:
+- cloud
+- hosting_extranjero
+- saas
+- cdn
+- subprocesador
+- transferencia_internacional
+requisito: Antes de enviar datos fuera de Perú, verificar nivel de protección adecuado del país destino
+  o usar cláusulas contractuales tipo/consentimiento. Entidades extranjeras que sirven a residentes peruanos
+  deben designar representante local.
+fuente: Ley 29733 Art. 15 (flujo transfronterizo); DS 016-2024-JUS Arts. 18-20 (transferencia internacional)
+source_url: https://diariooficial.elperuano.pe/Normas/obtenerDocumento?idNorma=23
+nota: 'Arts. 18-20 del reglamento: confianza media (IAPP).'
+patron_ears: WHERE el dato personal se procesa o almacena fuera de Perú THE SYSTEM SHALL garantizar base
+  de transferencia válida (adecuación o cláusulas).
+mapea_principio: PRIN-ARCH-001
+fecha_revision: '2025-03-30'
+vigencia_hasta: '2027-03-30'
+owner: legal@valtx.pe
+jurisdiccion: PE

@@ -1,0 +1,27 @@
+id: POL-PE-UBIC-003
+titulo: Datos de ubicación e identificadores en línea
+enforcement: MUST
+triggers:
+- ubicacion
+- geolocalizacion
+- gps
+- geofencing
+- ip
+- cookies
+- device_id
+- tracking
+- location
+requisito: Tratar la geolocalización, IP, cookies y device-ID como datos personales. Recabar consentimiento
+  ESPECÍFICO y separado del general para capturar ubicación; permitir revocación y no capturar en background
+  sin aviso.
+fuente: Ley 29733 (ubicación como dato personal); DS 016-2024-JUS Título Preliminar Art. III (identificadores
+  en línea/ubicación dentro de datos personales)
+source_url: https://busquedas.elperuano.pe/dispositivo/SE/2349653-1
+nota: No existe artículo dedicado exclusivamente a geolocalización; se clasifica vía definiciones.
+patron_ears: WHEN el usuario activa una función que requiere ubicación THE SYSTEM SHALL solicitar consentimiento
+  específico y separado antes de capturar coordenadas, con opción de revocación.
+mapea_principio: PRIN-PRIV-001
+fecha_revision: '2025-03-30'
+vigencia_hasta: '2027-03-30'
+owner: legal@valtx.pe
+jurisdiccion: PE

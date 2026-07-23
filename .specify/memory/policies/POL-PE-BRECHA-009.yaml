@@ -1,0 +1,23 @@
+id: POL-PE-BRECHA-009
+titulo: Notificación de brechas de seguridad
+enforcement: MUST
+triggers:
+- incidente
+- brecha
+- acceso_no_autorizado
+- filtracion
+- ransomware
+- perdida_datos
+requisito: Ante un incidente de seguridad que afecte datos personales, notificar a la ANPD (y a los titulares
+  cuando corresponda) en un máximo de 48 horas desde su conocimiento. Mantener un procedimiento documentado
+  de respuesta a brechas.
+fuente: DS 016-2024-JUS Art. 34 (notificación de brechas, 48h)
+source_url: https://busquedas.elperuano.pe/dispositivo/SE/2349653-1
+nota: 'Art. 34 del reglamento y plazo 48h: confianza media-alta (IAPP/guías). CONFIRMAR número.'
+patron_ears: WHEN se detecta una brecha de seguridad de datos personales THE SYSTEM SHALL disparar el
+  flujo de notificación a la ANPD dentro de 48h.
+mapea_principio: PRIN-SEC-002
+fecha_revision: '2025-03-30'
+vigencia_hasta: '2027-03-30'
+owner: legal@valtx.pe
+jurisdiccion: PE

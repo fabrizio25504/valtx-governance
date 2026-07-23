@@ -1,0 +1,24 @@
+id: POL-PE-SEG-006
+titulo: Medidas de seguridad del tratamiento
+enforcement: MUST
+triggers:
+- almacenamiento
+- autenticacion
+- logging
+- backup
+- cifrado
+- pii
+- transmision
+requisito: 'Implementar medidas técnicas y organizativas: cifrado, control de acceso, logs conservados
+  (mín. 2 años) y un Documento de Seguridad con inventario de bancos de datos y medidas.'
+fuente: Ley 29733 Art. 9 (principio de seguridad), Art. 16 (seguridad del tratamiento); DS 016-2024-JUS
+  Art. 47 (Documento de Seguridad), Arts. 49-50 (accesos/equipos)
+source_url: https://diariooficial.elperuano.pe/Normas/obtenerDocumento?idNorma=23
+nota: 'Arts. 47/49/50 del reglamento: confianza media (IAPP).'
+patron_ears: THE SYSTEM SHALL cifrar los datos personales en reposo y tránsito y registrar accesos en
+  logs conservados al menos 2 años.
+mapea_principio: PRIN-SEC-002
+fecha_revision: '2025-03-30'
+vigencia_hasta: '2027-03-30'
+owner: legal@valtx.pe
+jurisdiccion: PE

@@ -1,0 +1,28 @@
+id: POL-PE-CONSENT-001
+titulo: Consentimiento para tratamiento de datos personales
+enforcement: MUST
+triggers:
+- registro
+- formulario
+- cuenta
+- cookies
+- tracking
+- marketing
+- pii
+- datos_personales
+- opt-in
+requisito: Obtener consentimiento previo, libre, expreso, informado e inequívoco ANTES de tratar datos
+  personales, y que sea DEMOSTRABLE (registrar timestamp, versión de política y texto mostrado). Prohibidos
+  checkboxes premarcados o consentimiento por inacción.
+fuente: Ley 29733 Art. 5 (principio de consentimiento); Art. 13-14 (alcances/límites); DS 016-2024-JUS
+  Arts. 22, 25, 26 (menores, identidad en Internet, publicidad)
+source_url: https://diariooficial.elperuano.pe/Normas/obtenerDocumento?idNorma=23
+nota: 'Características del consentimiento (inequívoco/demostrable) del reglamento: artículo general POR
+  CONFIRMAR en el texto oficial.'
+patron_ears: WHEN el usuario inicia una acción que recolecta datos personales THE SYSTEM SHALL registrar
+  consentimiento previo, expreso y demostrable (timestamp + versión de política) antes de tratar el dato.
+mapea_principio: PRIN-PRIV-001
+fecha_revision: '2025-03-30'
+vigencia_hasta: '2027-03-30'
+owner: legal@valtx.pe
+jurisdiccion: PE

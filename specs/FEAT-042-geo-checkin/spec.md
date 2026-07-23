@@ -10,27 +10,27 @@ estado: draft
 
 ## Contexto
 El usuario hace "check-in" en un local capturando su ubicación. Toca datos
-personales de geolocalización → la **Capa 0** activó las Policy Cards
-`POL-PRIV-GEO-001` y `POL-DATA-RET-002`.
+personales de geolocalización → la **Capa 0** activó (por triggers) las Policy Cards
+`POL-PE-CONSENT-001`, `POL-PE-UBIC-003`, `POL-PE-MINIM-004`.
 
 ## Requisitos (EARS) — cada uno cita la norma/principio que cumple
 
 - **REQ-GEO-001** — WHEN el usuario activa el check-in por ubicación,
-  THE SYSTEM SHALL solicitar y registrar consentimiento explícito
+  THE SYSTEM SHALL solicitar y registrar consentimiento previo, expreso y demostrable
   (timestamp + versión de política) antes de capturar coordenadas.
-  _Cumple: POL-PRIV-GEO-001 (Ley 29733 art.5, 13.7) · PRIN-PRIV-001._
+  _Cumple: POL-PE-CONSENT-001 (Ley 29733 Art. 5) · POL-PE-UBIC-003 · PRIN-PRIV-001._
 
 - **REQ-GEO-002** — THE SYSTEM SHALL almacenar la ubicación con un plazo de
   retención definido y purga automática al expirar.
-  _Cumple: POL-DATA-RET-002 (Ley 29733 art.8)._
+  _Cumple: POL-PE-MINIM-004 (Ley 29733 Art. 6-8, 20)._
 
 - **REQ-GEO-003** — WHERE el usuario revoca el consentimiento,
   THE SYSTEM SHALL detener la captura y purgar las coordenadas asociadas.
-  _Cumple: POL-PRIV-GEO-001 (revocabilidad) · PRIN-PRIV-001._
+  _Cumple: POL-PE-UBIC-003 (revocabilidad) · POL-PE-ARCO-005 (oposición) · PRIN-PRIV-001._
 
 ## Normas cumplidas (trazable)
-| REQ | Policy Card | Fuente | version_hash |
-|-----|-------------|--------|--------------|
-| REQ-GEO-001 | POL-PRIV-GEO-001 | Ley 29733 art.5,13.7 | 7402e776 |
-| REQ-GEO-002 | POL-DATA-RET-002 | Ley 29733 art.8 | 77b0e410 |
-| REQ-GEO-003 | POL-PRIV-GEO-001 | Ley 29733 art.13.7 | 7402e776 |
+| REQ | Policy Card | Fuente (artículo) |
+|-----|-------------|-------------------|
+| REQ-GEO-001 | POL-PE-CONSENT-001 · POL-PE-UBIC-003 | Ley 29733 Art. 5, 13 |
+| REQ-GEO-002 | POL-PE-MINIM-004 | Ley 29733 Art. 6-8, 20 |
+| REQ-GEO-003 | POL-PE-UBIC-003 · POL-PE-ARCO-005 | Ley 29733 Art. 20, 22 |

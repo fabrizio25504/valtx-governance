@@ -1,0 +1,24 @@
+id: POL-PE-ARCO-005
+titulo: Derechos ARCO + portabilidad
+enforcement: MUST
+triggers:
+- cuenta
+- perfil
+- eliminar_cuenta
+- exportar_datos
+- dsar
+- baja
+- pii
+requisito: Implementar flujos para acceso, rectificación, cancelación (supresión) y oposición del titular,
+  con respuesta en el plazo legal de 10 días. Ofrecer exportación en formato estructurado (portabilidad).
+fuente: Ley 29733 Art. 19 (acceso), Art. 20 (rectificación/supresión), Art. 22 (oposición), Arts. 18,21,23,24
+  (conexos); DS 016-2024-JUS Art. 76 (portabilidad)
+source_url: https://diariooficial.elperuano.pe/Normas/obtenerDocumento?idNorma=23
+nota: 'Art. 76 (portabilidad) del reglamento: POR CONFIRMAR (fuente IAPP).'
+patron_ears: WHEN el titular solicita acceso/rectificación/cancelación/oposición THE SYSTEM SHALL atender
+  la solicitud en un máximo de 10 días.
+mapea_principio: PRIN-PRIV-001
+fecha_revision: '2025-03-30'
+vigencia_hasta: '2027-03-30'
+owner: legal@valtx.pe
+jurisdiccion: PE

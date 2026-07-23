@@ -1,0 +1,28 @@
+id: POL-PE-SENSIBLE-002
+titulo: Datos sensibles — tratamiento reforzado
+enforcement: MUST
+triggers:
+- salud
+- biometria
+- huella
+- rostro
+- genetico
+- etnia
+- religion
+- politica
+- sindical
+- orientacion_sexual
+- sensible
+requisito: Los datos sensibles exigen consentimiento expreso y POR ESCRITO (firma manuscrita/digital/electrónica).
+  Aplicar cifrado y control de acceso estricto; minimizar o evitar el almacenamiento cuando sea posible.
+fuente: 'Ley 29733 Art. 2.5 (definición de datos sensibles); DS 016-2024-JUS Título Preliminar Art. III
+  (definiciones ampliadas: biométricos/neuronales)'
+source_url: https://diariooficial.elperuano.pe/Normas/obtenerDocumento?idNorma=23
+nota: El reglamento amplía la definición (biométricos que identifican, datos neuronales/emocionales).
+patron_ears: WHERE el feature trata datos sensibles THE SYSTEM SHALL exigir consentimiento por escrito
+  y cifrar el dato en reposo y tránsito.
+mapea_principio: PRIN-PRIV-001
+fecha_revision: '2025-03-30'
+vigencia_hasta: '2027-03-30'
+owner: legal@valtx.pe
+jurisdiccion: PE

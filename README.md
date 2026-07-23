@@ -18,10 +18,12 @@ para poder correr todo en una sola máquina. En producción se separa (ver §6).
 ```
 .specify/memory/
   constitution.md              # principios machine-readable (id·MUST/SHOULD·CWE·pattern)
-  policies/                    # Capa 0 — Policy Cards (normativa destilada)
-    POL-PRIV-GEO-001.yaml       #   consentimiento de geolocalización (vigente)
-    POL-DATA-RET-002.yaml       #   retención/minimización (SEMBRADA vencida, demo)
-    sources/                    #   textos legales fuente (para el hash de vigencia)
+  policies/                    # Capa 0 — Policy Cards (Ley 29733 PE + DS 016-2024-JUS)
+    POL-PE-CONSENT-001.yaml ...  #   9 tarjetas: consentimiento, sensibles, ubicación,
+    build_policies_peru.py       #   minimización/retención, ARCO, seguridad, transfronterizo,
+                                 #   registro RNPDP, brechas. Generadas por este script (auditable).
+cost/
+  cost_model.py                # TECHO de costo mensual por escala -> Valtx_SDD_Modelo_Costo.xlsx
 ci/
   policy_freshness.py          # GATE 1 · vigencia normativa — 0 tokens LLM
   context_bundler.py           # selección 3–5 principios/cards — palanca de tokens
@@ -41,18 +43,16 @@ pip install -r requirements.txt
 SDD_TODAY=2026-07-23 python ci/run_gates.py FEAT-042-geo-checkin
 ```
 
-Verás (esperado, por los fallos sembrados):
-- **GATE 1 BLOCK** — `POL-DATA-RET-002` vencida + fuente cambiada → alerta al abogado.
-- **bundler** — 2/6 principios, 2/2 cards, ~70% menos tokens que el corpus completo.
-- **GATE 2 BLOCK** — `REQ-GEO-009` citado en código pero inexistente en el spec = alucinación.
+Verás (esperado):
+- **GATE 1 PASS** — 9 Policy Cards de la Ley 29733 vigentes (para probar el catch,
+  pon `vigencia_hasta` en el pasado en cualquier tarjeta → alerta al abogado, 0 tokens).
+- **bundler** — 2/6 principios, 6/9 cards por triggers, ~68% menos tokens que el corpus.
+- **GATE 2 BLOCK** — `REQ-GEO-009` citado en código pero inexistente en el spec = alucinación (sembrada).
 - **GATE 3 PASS** — 3/3 REQ con escenario Gherkin.
 
-### Ponerlo en verde (ver el loop completo)
-1. `POL-DATA-RET-002.yaml`: sube `fecha_revision`/`vigencia_hasta` a futuro y corrige
-   `version_hash` al hash real (`python -c "import hashlib;print(hashlib.sha256(open('.specify/memory/policies/sources/ley-29733-art8.txt','rb').read()).hexdigest()[:8])"`).
-2. `src/geo_checkin.py`: elimina `recommend_places`/`_nearby` (la feature alucinada) o
-   añade `REQ-GEO-004` al spec + su escenario Gherkin.
-3. Re-corre → todos los gates en verde = apto para PR/merge.
+### Ponerlo 100% en verde
+`src/geo_checkin.py`: elimina `recommend_places`/`_nearby` (la feature alucinada) o
+añade `REQ-GEO-004` al spec + su escenario Gherkin. Re-corre → todo verde = apto para PR.
 
 ## 3. Los 8 pasos del flujo ↔ dónde viven
 

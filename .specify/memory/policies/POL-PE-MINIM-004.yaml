@@ -1,0 +1,26 @@
+id: POL-PE-MINIM-004
+titulo: Finalidad, proporcionalidad, calidad y retención
+enforcement: MUST
+triggers:
+- esquema_bd
+- formulario
+- retencion
+- purga
+- logs
+- data_warehouse
+- pii
+- perfil
+requisito: Recolectar solo datos necesarios y pertinentes para una finalidad determinada y explícita (minimización).
+  Definir política de retención con borrado/anonimización automático al expirar. Mantener datos exactos
+  y actualizados.
+fuente: Ley 29733 Art. 6 (finalidad), Art. 7 (proporcionalidad), Art. 8 (calidad), Art. 20 (supresión)
+source_url: https://diariooficial.elperuano.pe/Normas/obtenerDocumento?idNorma=23
+nota: Plazo fijo de retención (p.ej. 2 años marketing) citado por fuentes secundarias — NO confirmado;
+  definir plazo por finalidad.
+patron_ears: THE SYSTEM SHALL capturar el mínimo de campos necesarios y aplicar un plazo de retención
+  con purga automática por finalidad declarada.
+mapea_principio: PRIN-PRIV-001
+fecha_revision: '2025-03-30'
+vigencia_hasta: '2027-03-30'
+owner: legal@valtx.pe
+jurisdiccion: PE
