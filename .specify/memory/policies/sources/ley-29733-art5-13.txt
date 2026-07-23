@@ -1,0 +1,4 @@
+Ley 29733 - Art. 5 (Principio de consentimiento): El tratamiento de datos
+personales requiere el consentimiento libre, previo, expreso e informado del
+titular. Art. 13.7: cuando se traten datos de geolocalizacion se debe informar
+la finalidad y obtener consentimiento especifico y revocable.

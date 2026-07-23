@@ -1,0 +1,24 @@
+id: POL-PRIV-GEO-001
+titulo: Consentimiento de geolocalización
+enforcement: MUST
+# triggers: el router (código, 0 tokens LLM) activa esta tarjeta si el feature
+# declara alguno de estos tags en su front-matter.
+triggers: [ubicacion, geolocalizacion, gps, tracking, location]
+requisito: >
+  Solicitar consentimiento explícito, granular y revocable ANTES de capturar
+  coordenadas. Registrar timestamp, versión de política aceptada y scope.
+  Permitir revocación y purga. Prohibido capturar en background sin aviso.
+fuente: "Ley N° 29733 (Perú) art. 5 y 13.7; RGPD art. 6(1)(a) y art. 7"
+# El chequeo de vigencia (policy_freshness.py) compara estos campos con la fecha
+# de hoy y el hash del texto fuente. NO usa LLM.
+version_hash: "7402e776"
+source_file: "sources/ley-29733-art5-13.txt"
+fecha_revision: "2026-01-15"
+vigencia_hasta: "2027-01-15"
+owner: "legal@valtx.pe"
+# Patrón EARS que el generador usa como semilla del REQ de cumplimiento.
+patron_ears: >
+  WHEN el usuario activa una función que requiere ubicación
+  THE SYSTEM SHALL solicitar y registrar consentimiento explícito
+  (timestamp + versión de política) antes de capturar coordenadas.
+mapea_principio: PRIN-PRIV-001

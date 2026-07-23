@@ -1,0 +1,45 @@
+name: SDD Orchestrator
+
+# Corre los mismos gates que ci/run_gates.py, en cada PR y ante disparadores
+# externos (Notion/Linear via repository_dispatch).
+on:
+  pull_request:
+    branches: [ main, dev ]
+  repository_dispatch:
+    types: [ notion-feature, linear-task ]
+  workflow_dispatch:
+    inputs:
+      feature:
+        description: "Carpeta del feature en specs/"
+        default: "FEAT-042-geo-checkin"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+
+      # --- GATE 1: Vigencia normativa (Capa 0) — 0 tokens LLM ---
+      - name: Gate vigencia normativa
+        run: python ci/policy_freshness.py
+
+      # --- GATE 2: Trazabilidad / orphan-REQ (detección de alucinaciones) ---
+      - name: Gate trazabilidad
+        run: python ci/check_traceability.py specs/${{ github.event.inputs.feature || 'FEAT-042-geo-checkin' }}/spec.md src/
+
+      # --- GATE 3: Cobertura EARS <-> Gherkin 100% ---
+      - name: Gate cobertura
+        run: python ci/coverage_graph.py specs/${{ github.event.inputs.feature || 'FEAT-042-geo-checkin' }}/spec.md specs/${{ github.event.inputs.feature || 'FEAT-042-geo-checkin' }}/
+
+      # --- Mejoras del flujo (activar cuando haya secrets) ---
+      # - name: SAST + secret scanning
+      #   uses: github/codeql-action/analyze@v3
+      # - name: Observabilidad de tokens
+      #   run: python ci/token_meter.py   # emite costo/tokens del run del agente
