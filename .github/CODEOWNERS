@@ -1,0 +1,9 @@
+# Gobierno normativo — quién debe revisar antes de un merge.
+#
+# TEST (por ahora, solo tú): se usa tu usuario para que el archivo sea válido.
+# PRODUCCIÓN: crea los equipos en la org y reemplaza por:
+#   /.specify/memory/policies/         @valtx-ia-test/legal
+#   /.specify/memory/constitution.md   @valtx-ia-test/arquitectura
+
+/.specify/memory/policies/          @LimaAnalytica
+/.specify/memory/constitution.md    @LimaAnalytica
