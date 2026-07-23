@@ -17,6 +17,13 @@ permissions:
   contents: read
   pull-requests: write
 
+# Feature a evaluar, resuelto según el disparador:
+#  - repository_dispatch (Notion/Linear): client_payload.feature
+#  - workflow_dispatch (manual): inputs.feature
+#  - pull_request u otro: fallback al demo
+env:
+  FEATURE: ${{ github.event.client_payload.feature || github.event.inputs.feature || 'FEAT-042-geo-checkin' }}
+
 jobs:
   gates:
     runs-on: ubuntu-latest
@@ -26,17 +33,24 @@ jobs:
         with: { python-version: "3.11" }
       - run: pip install -r requirements.txt
 
+      # Traza el origen del disparo (útil para Notion/Linear)
+      - name: Contexto del disparo
+        run: |
+          echo "Evento: ${{ github.event_name }}"
+          echo "Feature: $FEATURE"
+          echo "Prompt (si viene de Notion/Linear): ${{ github.event.client_payload.prompt }}"
+
       # --- GATE 1: Vigencia normativa (Capa 0) — 0 tokens LLM ---
       - name: Gate vigencia normativa
         run: python ci/policy_freshness.py
 
       # --- GATE 2: Trazabilidad / orphan-REQ (detección de alucinaciones) ---
       - name: Gate trazabilidad
-        run: python ci/check_traceability.py specs/${{ github.event.inputs.feature || 'FEAT-042-geo-checkin' }}/spec.md src/
+        run: python ci/check_traceability.py "specs/$FEATURE/spec.md" src/
 
       # --- GATE 3: Cobertura EARS <-> Gherkin 100% ---
       - name: Gate cobertura
-        run: python ci/coverage_graph.py specs/${{ github.event.inputs.feature || 'FEAT-042-geo-checkin' }}/spec.md specs/${{ github.event.inputs.feature || 'FEAT-042-geo-checkin' }}/
+        run: python ci/coverage_graph.py "specs/$FEATURE/spec.md" "specs/$FEATURE/"
 
       # --- Mejoras del flujo (activar cuando haya secrets) ---
       # - name: SAST + secret scanning

@@ -33,19 +33,9 @@ def revoke(user):
     return True
 
 
-def recommend_places(user):
-    # REQ-GEO-009: ranking de lugares sugeridos por afinidad   <-- ALUCINACIÓN sembrada
-    return sorted(_nearby(user), key=lambda p: p["score"], reverse=True)
-
-
 def _read_gps(user):
-    handset_battery_saver = True   # <-- línea sustantiva SIN cita REQ (gap sembrado)
     return (-12.0464, -77.0428)  # REQ-GEO-001: lectura de coordenadas
 
 
 def _purge(user):
     return None  # REQ-GEO-003: purga de coordenadas
-
-
-def _nearby(user):
-    return [{"name": "x", "score": 1}]  # REQ-GEO-009: candidatos (parte de la alucinación)
