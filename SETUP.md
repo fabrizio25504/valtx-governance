@@ -64,7 +64,12 @@ gh secret set DISPATCH_PAT        --repo valtx-ia-test/valtx-governance
 
 ---
 
-## Fase C · spec-kit (10 min)
+## Fase C · spec-kit (10 min)  ← inicio del BRAZO de autoría+implementación
+
+> spec-kit y el agente (Fase G) son **un solo continuo**, no fases sueltas:
+> spec-kit **genera** los artefactos (spec → plan → tasks → gherkin) y el agente
+> **los implementa**. Vertex (Fase G-bis) le da al agente el *retrieval* de contexto
+> y luego indexa los EARS. Orden del brazo: **C → G-bis (Vertex) → G**.
 
 ```bash
 # Instala spec-kit en el repo (crea .specify/, comandos /speckit.*)
@@ -167,6 +172,46 @@ Tiering de modelos (palanca de costo del modelo `cost/cost_model.py`):
 - Refinamiento/routing → **Haiku**
 - Spec/Plan/Tasks/Gherkin/Review → **Sonnet**
 - Code dev (fase dominante) → **Opus** (techo) o **Sonnet** (piso, −79% LLM/feature)
+
+---
+
+## Fase G-bis · Vertex AI Search — retrieval + KB (30–45 min)
+
+Vertex aparece **2 veces** en el flujo: (a) el agente **consulta** contexto antes de
+codear ("Gather Context for Tasks"); (b) al mergear, los EARS/specs se **indexan** para
+features futuros ("Update Knowledge Base").
+
+```bash
+# 1. Proyecto GCP + habilitar APIs  ⟶ TÚ
+gcloud config set project valtx-sdd
+gcloud services enable discoveryengine.googleapis.com aiplatform.googleapis.com
+
+# 2. Data Store + Search App  ⟶ TÚ (consola: Vertex AI Agent Builder → Search)
+#    - Tipo: Unstructured (docs) o Cloud Storage.
+#    - Ingesta inicial: sube tus repos/docs a un bucket GCS y apúntalo como fuente.
+gsutil mb gs://valtx-sdd-kb
+gsutil -m cp -r specs .specify src gs://valtx-sdd-kb/   # semilla del KB
+
+# 3. Service Account con acceso a Discovery Engine  ⟶ TÚ
+gcloud iam service-accounts create sdd-retrieval
+gcloud projects add-iam-policy-binding valtx-sdd \
+  --member="serviceAccount:sdd-retrieval@valtx-sdd.iam.gserviceaccount.com" \
+  --role="roles/discoveryengine.editor"
+gcloud iam service-accounts keys create gcp-sa.json \
+  --iam-account=sdd-retrieval@valtx-sdd.iam.gserviceaccount.com
+
+# 4. Cárgala como secret
+gh secret set GCP_SA_KEY --repo valtx-ia-test/valtx-governance --body (Get-Content gcp-sa.json -Raw)
+```
+
+Wiring en la CI (dos scripts que se conectan a los nodos del diagrama):
+- `ci/gather_context.py` → *retrieval*: consulta el Data Store con las tasks y devuelve
+  los pasajes relevantes al prompt del agente (nodo "Gather Context for Tasks").
+- `ci/update_kb.py` → *indexado*: tras el merge, sube los EARS/specs nuevos al Data Store
+  (nodo "Update Knowledge Base").
+
+> Estos dos scripts están pendientes de crear (los armamos al llegar a esta fase, ya con
+> tu Data Store real y su ID). El `DATA_STORE_ID` va como variable de repo.
 
 ---
 
