@@ -74,20 +74,32 @@ jobs:
           READS="--read specs/$FEATURE/spec.md"
           [ -f context_kb.md ] && READS="$READS --read context_kb.md"
           for f in specs/$FEATURE/*.feature; do [ -f "$f" ] && READS="$READS --read $f"; done
+          # Captura el output de aider (incluye su reporte de tokens/costo) para medirlo.
           aider --model "$AGENT_MODEL" --yes-always --no-auto-commit --no-check-update \
             --no-stream --no-analytics $READS \
-            --message "Implementa en src/ (nuevo archivo) los requisitos del feature $FEATURE segun specs/$FEATURE/spec.md y su .feature. REGLAS OBLIGATORIAS que la CI verifica y bloquea si no se cumplen: (1) cada linea de codigo no trivial cita su REQ en comentario '# REQ-XXX-###'; (2) NO inventes REQ que no existan en el spec; (3) respeta las Policy Cards citadas; (4) NO modifiques .specify/memory/ ni ci/ ni otros features."
+            --message "Implementa en src/ (nuevo archivo) los requisitos del feature $FEATURE segun specs/$FEATURE/spec.md y su .feature. REGLAS OBLIGATORIAS que la CI verifica y bloquea si no se cumplen: (1) cada linea de codigo no trivial cita su REQ en comentario '# REQ-XXX-###'; (2) NO inventes REQ que no existan en el spec; (3) respeta las Policy Cards citadas; (4) NO modifiques .specify/memory/ ni ci/ ni otros features." \
+            2>&1 | tee aider_out.txt
 
-      # 4) Commit + PR → dispara el SDD Orchestrator (los 3 gates)
+      # 3b) OBSERVABILIDAD — mide tokens/costo REAL del run (dato para el modelo de costo).
+      - name: Medir costo (token_meter)
+        if: always()
+        run: |
+          python ci/token_meter.py --feature "$FEATURE" --stage implement \
+            --model "$AGENT_MODEL" --aider-log aider_out.txt --summary-out cost_comment.md || true
+
+      # 4) Commit + PR → dispara el SDD Orchestrator (los gates)
       # Usa el PAT personal (no el GITHUB_TOKEN del bot): la restricción de la org
       # "Actions no puede crear PRs" aplica solo al bot; con tu PAT el PR se crea como tú.
       - name: Abrir PR
         env:
           GH_TOKEN: ${{ secrets.DISPATCH_PAT }}
         run: |
+          rm -f aider_out.txt        # no versionar el log crudo; sí las métricas (metrics/*.jsonl)
           git add -A
           git commit -m "feat(${FEATURE}): implementación por agente SDD (${AGENT_MODEL})" || { echo "sin cambios"; exit 0; }
           git push -u origin "$BRANCH"
-          gh pr create --base main --head "$BRANCH" \
+          PR_URL=$(gh pr create --base main --head "$BRANCH" \
             --title "feat: ${FEATURE} (agente · ${AGENT_MODEL})" \
-            --body "Implementación por el agente (aider, modelo ${AGENT_MODEL}). Contexto vía Vertex AI Search. Sujeto a los 3 gates (vigencia normativa · trazabilidad · cobertura)."
+            --body "Implementación por el agente (aider, modelo ${AGENT_MODEL}). Contexto vía Vertex AI Search. Sujeto a los gates (vigencia · consistencia normativa · trazabilidad · cobertura).")
+          echo "PR: $PR_URL"
+          [ -f cost_comment.md ] && gh pr comment "$PR_URL" --body-file cost_comment.md || true

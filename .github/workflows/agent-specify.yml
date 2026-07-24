@@ -84,9 +84,17 @@ jobs:
             B) $SPEC_DIR/${SLUG}.feature en Gherkin español (primera linea '# language: es').
             REGLAS OBLIGATORIAS que la CI verifica y bloquea:
             (1) Cada requisito es EARS ('WHEN/WHERE/IF ... THE SYSTEM SHALL ...') con id REQ-<AREA>-### (AREA = 3-4 letras mayusculas coherentes, p.ej. REQ-EXP-001).
-            (2) Cada REQ cita en su texto UNA Policy Card de la lista [$POLICIES] con su articulo (usa el bloque 'CAPA 0' del contexto). NO cites policies fuera de esa lista. NO inventes leyes.
+            (2) La lista de policies aprobadas por el router es: [$POLICIES]. Si NO esta vacia, cada REQ cita en su texto UNA policy de esa lista con su articulo (usa el bloque 'CAPA 0'). Si esta VACIA, el feature NO toca normativa: NO cites NINGUNA policy, NO menciones POL-xx, NO inventes leyes ni articulos, y deja 'policies: []' y la seccion 'Normas cumplidas' con 'Ninguna norma aplicable (sin datos personales)'. La CI BLOQUEA cualquier POL-xx que no este en [$POLICIES].
             (3) El .feature tiene EXACTAMENTE un Escenario por cada REQ, etiquetado con '@REQ-<AREA>-###' identico al del spec (el gate de cobertura exige 100%).
-            (4) NO escribas codigo de implementacion, NO toques ci/ ni .specify/memory/ ni otros features. Solo estos dos archivos."
+            (4) NO escribas codigo de implementacion, NO toques ci/ ni .specify/memory/ ni otros features. Solo estos dos archivos." \
+            2>&1 | tee aider_out.txt
+
+      # 3b) OBSERVABILIDAD — costo real de redactar el spec.
+      - name: Medir costo (token_meter)
+        if: always() && env.SPEC_DIR != ''
+        run: |
+          python ci/token_meter.py --feature "$FEAT_ID" --stage specify \
+            --model "$AGENT_MODEL" --aider-log aider_out.txt --summary-out cost_comment.md || true
 
       # 4) PR para revisión humana (con PAT personal → evita la restricción org de Actions).
       - name: Abrir PR del spec
@@ -98,9 +106,12 @@ jobs:
           git config user.email "sdd-agent@valtx.pe"
           BRANCH="spec/${FEAT_ID}-${GITHUB_RUN_ID}"
           git checkout -b "$BRANCH"
+          rm -f aider_out.txt capa0_context.md
           git add -A
           git commit -m "spec(${FEAT_ID}): borrador generado por agente (${AGENT_MODEL})" || { echo "sin cambios"; exit 0; }
           git push -u origin "$BRANCH"
-          gh pr create --base main --head "$BRANCH" \
+          PR_URL=$(gh pr create --base main --head "$BRANCH" \
             --title "spec: ${FEAT_ID} (borrador · agente)" \
-            --body "Borrador de spec generado desde el prompt del usuario. Capa 0 aplicó: ${POLICIES:-(ninguna)}. **Revisión humana requerida** antes de implementar. Los gates corren en draft (cobertura EARS↔Gherkin 100%; implementación aún no exigida)."
+            --body "Borrador de spec generado desde el prompt del usuario. Capa 0 aplicó: ${POLICIES:-(ninguna)}. **Revisión humana requerida** antes de implementar. Los gates corren en draft (consistencia normativa + cobertura EARS↔Gherkin 100%; implementación aún no exigida).")
+          echo "PR: $PR_URL"
+          [ -f cost_comment.md ] && gh pr comment "$PR_URL" --body-file cost_comment.md || true

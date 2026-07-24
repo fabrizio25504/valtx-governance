@@ -2,6 +2,7 @@
 id: FEAT-042
 titulo: Check-in por geolocalización
 tags: [ubicacion, geolocalizacion, gps, pii]
+policies: [POL-PE-CONSENT-001, POL-PE-UBIC-003, POL-PE-MINIM-004, POL-PE-ARCO-005]
 owner: producto@valtx.pe
 estado: draft
 ---

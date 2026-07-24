@@ -3,6 +3,12 @@
 Orquestador local de gates SDD — reproduce lo que hará GitHub Actions.
 Corre los 4 gates sobre un feature y devuelve exit!=0 si alguno bloquea.
 
+Gates:
+  1. Vigencia normativa (policy_freshness)      — 0 tokens LLM
+  2. Consistencia normativa (check_policy_citations) — policies citadas = aprobadas por el router
+  3. Trazabilidad / alucinaciones (check_traceability)
+  4. Cobertura EARS↔Gherkin (coverage_graph)
+
 Uso:  python ci/run_gates.py FEAT-042-geo-checkin
 """
 import sys, os, subprocess
@@ -29,12 +35,15 @@ def main(feat):
     results = {}
     results["Vigencia normativa (Capa 0)"] = run(
         "GATE 1 · Vigencia normativa — 0 tokens LLM", ["ci/policy_freshness.py"])
+    results["Consistencia normativa (Capa 0)"] = run(
+        "GATE 2 · Consistencia normativa — policies citadas = aprobadas por router",
+        ["ci/check_policy_citations.py", spec])
     print("\n" + "═" * 70 + "\n▶ Contexto selectivo (no bloquea; mide ahorro de tokens)\n" + "═" * 70)
     subprocess.run([PY, "ci/context_bundler.py", spec], cwd=ROOT)
     results["Trazabilidad / alucinaciones"] = run(
-        "GATE 2 · Trazabilidad — orphan-REQ (traceSDD)", ["ci/check_traceability.py", spec, "src/"])
+        "GATE 3 · Trazabilidad — orphan-REQ (traceSDD)", ["ci/check_traceability.py", spec, "src/"])
     results["Cobertura EARS↔Gherkin"] = run(
-        "GATE 3 · Cobertura EARS↔Gherkin 100%", ["ci/coverage_graph.py", spec, fdir])
+        "GATE 4 · Cobertura EARS↔Gherkin 100%", ["ci/coverage_graph.py", spec, fdir])
 
     print("\n" + "█" * 70 + "\n RESUMEN DE GATES\n" + "█" * 70)
     blocked = 0
