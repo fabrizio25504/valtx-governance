@@ -40,17 +40,21 @@ jobs:
           echo "Feature: $FEATURE"
           echo "Prompt (si viene de Notion/Linear): ${{ github.event.client_payload.prompt }}"
 
-      # --- GATE 1: Vigencia normativa (Capa 0) — 0 tokens LLM ---
+      # --- GATE 1: Vigencia normativa (Capa 0) — 0 tokens LLM (global) ---
       - name: Gate vigencia normativa
         run: python ci/policy_freshness.py
 
-      # --- GATE 2: Trazabilidad / orphan-REQ (detección de alucinaciones) ---
-      - name: Gate trazabilidad
-        run: python ci/check_traceability.py "specs/$FEATURE/spec.md" src/
-
-      # --- GATE 3: Cobertura EARS <-> Gherkin 100% ---
-      - name: Gate cobertura
-        run: python ci/coverage_graph.py "specs/$FEATURE/spec.md" "specs/$FEATURE/"
+      # --- GATE 2+3: Trazabilidad + Cobertura sobre TODOS los features ---
+      - name: Gates por feature (trazabilidad + cobertura)
+        run: |
+          rc=0
+          for d in specs/*/; do
+            [ -f "${d}spec.md" ] || continue
+            echo "===== $(basename "$d") ====="
+            python ci/check_traceability.py "${d}spec.md" src/ || rc=1
+            python ci/coverage_graph.py "${d}spec.md" "$d" || rc=1
+          done
+          exit $rc
 
       # --- Mejoras del flujo (activar cuando haya secrets) ---
       # - name: SAST + secret scanning
