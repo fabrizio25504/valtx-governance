@@ -22,7 +22,7 @@ permissions:
 #  - workflow_dispatch (manual): inputs.feature
 #  - pull_request u otro: fallback al demo
 env:
-  FEATURE: ${{ github.event.client_payload.feature || github.event.inputs.feature || 'FEAT-042-geo-checkin' }}
+  FEATURE: ${{ github.event.client_payload.feature || github.event.inputs.feature || github.head_ref || 'FEAT-042-geo-checkin' }}
 
 jobs:
   gates:
@@ -42,10 +42,12 @@ jobs:
 
       # --- GATE 1: Vigencia normativa (Capa 0) — 0 tokens LLM (global) ---
       - name: Gate vigencia normativa
+        id: freshness
         run: python ci/policy_freshness.py
 
       # --- GATE 2+3: Trazabilidad + Cobertura sobre TODOS los features ---
       - name: Gates por feature (trazabilidad + cobertura)
+        id: gates
         run: |
           rc=0
           for d in specs/*/; do
@@ -55,6 +57,22 @@ jobs:
             python ci/coverage_graph.py "${d}spec.md" "$d" || rc=1
           done
           exit $rc
+
+      # --- Write-back a Notion (feedback a Producto/Legal) — nunca rompe la CI ---
+      # Corre siempre: si un gate falló, marca Bloqueado + cuál; si todo pasó, En curso.
+      - name: Notion write-back
+        if: always()
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: |
+          PR="${{ github.event.pull_request.html_url }}"
+          if [ "${{ steps.freshness.outcome }}" = "failure" ]; then
+            python ci/update_notion.py --feature "$FEATURE" --status bloqueado --gate "vigencia normativa" --pr-url "$PR"
+          elif [ "${{ steps.gates.outcome }}" = "failure" ]; then
+            python ci/update_notion.py --feature "$FEATURE" --status bloqueado --gate "trazabilidad/cobertura" --pr-url "$PR"
+          else
+            python ci/update_notion.py --feature "$FEATURE" --status en_curso --pr-url "$PR"
+          fi
 
       # --- Mejoras del flujo (activar cuando haya secrets) ---
       # - name: SAST + secret scanning

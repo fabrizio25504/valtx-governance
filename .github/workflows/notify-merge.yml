@@ -1,0 +1,39 @@
+name: SDD Notify — Merge
+
+# Cierra el lazo de feedback: cuando un feature entra a main (mergeado y con gates
+# verdes, por definición de la protección de rama), marca su fila en Notion como "Listo".
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+
+      # Deriva los FEAT-### que tocó este merge: de los archivos cambiados y del
+      # mensaje del commit (el squash suele decir "feat: FEAT-044 ...").
+      - name: Marcar features mergeados como Listo
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: |
+          CHANGED=$(git diff --name-only HEAD^ HEAD || true)
+          MSG=$(git log -1 --pretty=%B || true)
+          FEATS=$(printf "%s\n%s\n" "$CHANGED" "$MSG" | grep -oE "FEAT-[0-9]+" | sort -u)
+          if [ -z "$FEATS" ]; then echo "Sin FEAT-### en este merge — nada que notificar."; exit 0; fi
+          for f in $FEATS; do
+            echo "----- $f → Listo -----"
+            # Usa la carpeta real del feature para que el mensaje incluya sus policies.
+            DIR=$(ls -d specs/${f}-*/ 2>/dev/null | head -1)
+            NAME=$([ -n "$DIR" ] && basename "$DIR" || echo "$f")
+            python ci/update_notion.py --feature "$NAME" --status listo \
+              --pr-url "${{ github.event.head_commit.url }}" || true
+          done
