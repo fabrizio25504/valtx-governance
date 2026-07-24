@@ -46,14 +46,24 @@ jobs:
 
       # 3) AGENTE — implementa las tasks citando REQ y usando el contexto recuperado
       #    NOTA: verifica los inputs de la acción en su README la 1ª vez (ver SETUP.md §G).
-      - name: Claude implementa las tasks
+      # Auth a GCP para usar Claude vía Vertex (evita la org Anthropic deshabilitada)
+      - name: Auth GCP (Vertex)
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          printf '%s' "$GCP_SA_KEY" > "$RUNNER_TEMP/gcp-sa.json"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/gcp-sa.json" >> "$GITHUB_ENV"
+
+      - name: Claude implementa las tasks (via Vertex)
         uses: anthropics/claude-code-action@v1
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_USE_VERTEX: "1"
+          ANTHROPIC_VERTEX_PROJECT_ID: ocrtesting-413503
+          CLOUD_ML_REGION: us-east5
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          use_vertex: "true"
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: "--max-turns 25"
+          claude_args: "--max-turns 20 --model claude-3-5-haiku@20241022"
           prompt: |
             Implementa las tareas de specs/${{ env.FEATURE }}/tasks.md en src/.
             Reglas OBLIGATORIAS (la CI las verifica y bloquea el merge si no se cumplen):
