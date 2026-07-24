@@ -23,6 +23,16 @@ def declared_reqs(spec_path):
     return set(REQ.findall(open(spec_path, encoding="utf-8").read()))
 
 
+def all_declared_reqs():
+    """Universo de REQ válidos = unión de TODOS los specs del repo.
+    El código puede citar REQ de cualquier feature; solo es alucinación si no
+    existe en NINGÚN spec."""
+    reqs = set()
+    for p in glob.glob(os.path.join("specs", "**", "spec.md"), recursive=True):
+        reqs |= set(REQ.findall(open(p, encoding="utf-8").read()))
+    return reqs
+
+
 def scan_code(src):
     files = glob.glob(os.path.join(src, "**", "*.py"), recursive=True) if os.path.isdir(src) else [src]
     cited, uncited = set(), []
@@ -54,12 +64,13 @@ def scan_code(src):
 
 
 def main(spec_path, src):
-    decl = declared_reqs(spec_path)
+    decl = declared_reqs(spec_path)        # REQ de ESTE feature (para "uncovered")
+    universe = all_declared_reqs()         # REQ de TODOS los specs (para "orphan")
     cited, uncited = scan_code(src)
-    orphans = cited - decl
-    uncovered = decl - cited
+    orphans = cited - universe              # citado en código, inexistente en cualquier spec
+    uncovered = decl - cited                # REQ de este feature sin implementar
 
-    print(f"\n=== Gate de trazabilidad (spec: {len(decl)} REQ | código cita: {len(cited)} REQ) ===")
+    print(f"\n=== Gate de trazabilidad (feature: {len(decl)} REQ | universo: {len(universe)} REQ | código cita: {len(cited)} REQ) ===")
     rc = 0
     if orphans:
         rc = 1
