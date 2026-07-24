@@ -48,6 +48,8 @@ jobs:
       #    NOTA: verifica los inputs de la acción en su README la 1ª vez (ver SETUP.md §G).
       - name: Claude implementa las tasks
         uses: anthropics/claude-code-action@v1
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
