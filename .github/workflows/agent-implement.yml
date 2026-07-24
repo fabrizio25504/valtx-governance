@@ -79,9 +79,11 @@ jobs:
             --message "Implementa en src/ (nuevo archivo) los requisitos del feature $FEATURE segun specs/$FEATURE/spec.md y su .feature. REGLAS OBLIGATORIAS que la CI verifica y bloquea si no se cumplen: (1) cada linea de codigo no trivial cita su REQ en comentario '# REQ-XXX-###'; (2) NO inventes REQ que no existan en el spec; (3) respeta las Policy Cards citadas; (4) NO modifiques .specify/memory/ ni ci/ ni otros features."
 
       # 4) Commit + PR → dispara el SDD Orchestrator (los 3 gates)
+      # Usa el PAT personal (no el GITHUB_TOKEN del bot): la restricción de la org
+      # "Actions no puede crear PRs" aplica solo al bot; con tu PAT el PR se crea como tú.
       - name: Abrir PR
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DISPATCH_PAT }}
         run: |
           git add -A
           git commit -m "feat(${FEATURE}): implementación por agente SDD (${AGENT_MODEL})" || { echo "sin cambios"; exit 0; }
