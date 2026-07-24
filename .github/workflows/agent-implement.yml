@@ -63,7 +63,7 @@ jobs:
         with:
           use_vertex: "true"
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          claude_args: "--max-turns 20 --model claude-3-5-haiku@20241022"
+          claude_args: "--max-turns 20 --model claude-haiku-4-5@20251001"
           prompt: |
             Implementa las tareas de specs/${{ env.FEATURE }}/tasks.md en src/.
             Reglas OBLIGATORIAS (la CI las verifica y bloquea el merge si no se cumplen):
