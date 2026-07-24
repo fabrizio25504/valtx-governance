@@ -1,8 +1,8 @@
 name: SDD Agent — Implement
 
 # Cierra el brazo de implementación: ante un linear-task (o manual), recupera contexto
-# del KB (Vertex), el agente implementa las tasks citando REQ, y abre un PR que pasa por
-# los 3 gates del SDD Orchestrator.
+# del KB (Vertex), el agente (aider — AGNÓSTICO al LLM) implementa las tasks citando REQ,
+# y abre un PR que pasa por los 3 gates del SDD Orchestrator.
 on:
   repository_dispatch:
     types: [ linear-task ]
@@ -10,14 +10,18 @@ on:
     inputs:
       feature:
         description: "Carpeta del feature en specs/"
-        default: "FEAT-042-geo-checkin"
+        default: "FEAT-044-data-export"
+      model:
+        description: "Modelo del agente (aider/LiteLLM): gpt-4o-mini, gpt-4o, claude-3-5-sonnet-20241022…"
+        default: "gpt-4o-mini"
 
 permissions:
   contents: write
   pull-requests: write
 
 env:
-  FEATURE: ${{ github.event.client_payload.feature || github.event.inputs.feature || 'FEAT-042-geo-checkin' }}
+  FEATURE: ${{ github.event.client_payload.feature || github.event.inputs.feature || 'FEAT-044-data-export' }}
+  AGENT_MODEL: ${{ github.event.client_payload.model || github.event.inputs.model || 'gpt-4o-mini' }}
 
 jobs:
   implement:
@@ -26,9 +30,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
-      - run: pip install -r requirements.txt
+      - run: pip install -r requirements.txt aider-chat
 
-      # 1) RETRIEVAL — contexto del KB (Vertex AI Search) para las tasks del feature
+      # 1) RETRIEVAL — contexto del KB (Vertex AI Search)
       - name: Gather context (Vertex)
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
@@ -36,52 +40,35 @@ jobs:
           python ci/gather_context.py --feature "$FEATURE" --top 8 > context_kb.md || true
           echo "----- contexto recuperado -----"; cat context_kb.md
 
-      # 2) Rama de trabajo del agente
+      # 2) Rama de trabajo
       - name: Crear rama
         run: |
           git config user.name  "sdd-agent"
           git config user.email "sdd-agent@valtx.pe"
-          echo "BRANCH=feature/${FEATURE}-${GITHUB_RUN_ID}" >> $GITHUB_ENV
+          echo "BRANCH=feature/${FEATURE}-${GITHUB_RUN_ID}" >> "$GITHUB_ENV"
           git checkout -b "feature/${FEATURE}-${GITHUB_RUN_ID}"
 
-      # 3) AGENTE — implementa las tasks citando REQ y usando el contexto recuperado
-      #    NOTA: verifica los inputs de la acción en su README la 1ª vez (ver SETUP.md §G).
-      # Auth a GCP para usar Claude vía Vertex (evita la org Anthropic deshabilitada)
-      - name: Auth GCP (Vertex)
+      # 3) AGENTE (aider, agnóstico) — implementa citando REQ, con el spec + gherkin + KB como contexto
+      - name: Agente implementa (aider)
         env:
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          printf '%s' "$GCP_SA_KEY" > "$RUNNER_TEMP/gcp-sa.json"
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$RUNNER_TEMP/gcp-sa.json" >> "$GITHUB_ENV"
+          READS="--read specs/$FEATURE/spec.md"
+          [ -f context_kb.md ] && READS="$READS --read context_kb.md"
+          for f in specs/$FEATURE/*.feature; do [ -f "$f" ] && READS="$READS --read $f"; done
+          aider --model "$AGENT_MODEL" --yes-always --no-auto-commit --no-check-update \
+            --no-stream --no-analytics $READS \
+            --message "Implementa en src/ (nuevo archivo) los requisitos del feature $FEATURE segun specs/$FEATURE/spec.md y su .feature. REGLAS OBLIGATORIAS que la CI verifica y bloquea si no se cumplen: (1) cada linea de codigo no trivial cita su REQ en comentario '# REQ-XXX-###'; (2) NO inventes REQ que no existan en el spec; (3) respeta las Policy Cards citadas; (4) NO modifiques .specify/memory/ ni ci/ ni otros features."
 
-      - name: Claude implementa las tasks (via Vertex)
-        uses: anthropics/claude-code-action@v1
-        env:
-          CLAUDE_CODE_USE_VERTEX: "1"
-          ANTHROPIC_VERTEX_PROJECT_ID: ocrtesting-413503
-          CLOUD_ML_REGION: us-east5
-        with:
-          use_vertex: "true"
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          show_full_output: "true"
-          claude_args: "--max-turns 20 --model claude-sonnet-4@20250514"
-          prompt: |
-            Implementa las tareas de specs/${{ env.FEATURE }}/tasks.md en src/.
-            Reglas OBLIGATORIAS (la CI las verifica y bloquea el merge si no se cumplen):
-            - Cada línea de código no trivial DEBE citar su REQ en comentario: # REQ-XXX-###.
-            - PROHIBIDO inventar un REQ que no exista en specs/${{ env.FEATURE }}/spec.md.
-            - Respeta las Policy Cards citadas en el spec (Ley 29733 / DS 016-2024-JUS).
-            - Usa el archivo context_kb.md (recuperado del KB) como contexto de apoyo.
-            - NO modifiques .specify/memory/ ni ci/.
-
-      # 4) Commit + PR → dispara el SDD Orchestrator (los 3 gates) sobre el resultado
+      # 4) Commit + PR → dispara el SDD Orchestrator (los 3 gates)
       - name: Abrir PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git add -A
-          git commit -m "feat(${FEATURE}): implementación por agente SDD" || { echo "sin cambios"; exit 0; }
+          git commit -m "feat(${FEATURE}): implementación por agente SDD (${AGENT_MODEL})" || { echo "sin cambios"; exit 0; }
           git push -u origin "$BRANCH"
           gh pr create --base main --head "$BRANCH" \
-            --title "feat: ${FEATURE} (agente SDD)" \
-            --body "Implementación automática por el agente. Contexto vía Vertex AI Search. Sujeto a los 3 gates (vigencia normativa · trazabilidad · cobertura)."
+            --title "feat: ${FEATURE} (agente · ${AGENT_MODEL})" \
+            --body "Implementación por el agente (aider, modelo ${AGENT_MODEL}). Contexto vía Vertex AI Search. Sujeto a los 3 gates (vigencia normativa · trazabilidad · cobertura)."
