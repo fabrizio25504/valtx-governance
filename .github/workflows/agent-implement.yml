@@ -1,0 +1,74 @@
+name: SDD Agent — Implement
+
+# Cierra el brazo de implementación: ante un linear-task (o manual), recupera contexto
+# del KB (Vertex), el agente implementa las tasks citando REQ, y abre un PR que pasa por
+# los 3 gates del SDD Orchestrator.
+on:
+  repository_dispatch:
+    types: [ linear-task ]
+  workflow_dispatch:
+    inputs:
+      feature:
+        description: "Carpeta del feature en specs/"
+        default: "FEAT-042-geo-checkin"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  FEATURE: ${{ github.event.client_payload.feature || github.event.inputs.feature || 'FEAT-042-geo-checkin' }}
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt
+
+      # 1) RETRIEVAL — contexto del KB (Vertex AI Search) para las tasks del feature
+      - name: Gather context (Vertex)
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        run: |
+          python ci/gather_context.py --feature "$FEATURE" --top 8 > context_kb.md || true
+          echo "----- contexto recuperado -----"; cat context_kb.md
+
+      # 2) Rama de trabajo del agente
+      - name: Crear rama
+        run: |
+          git config user.name  "sdd-agent"
+          git config user.email "sdd-agent@valtx.pe"
+          echo "BRANCH=feature/${FEATURE}-${GITHUB_RUN_ID}" >> $GITHUB_ENV
+          git checkout -b "feature/${FEATURE}-${GITHUB_RUN_ID}"
+
+      # 3) AGENTE — implementa las tasks citando REQ y usando el contexto recuperado
+      #    NOTA: verifica los inputs de la acción en su README la 1ª vez (ver SETUP.md §G).
+      - name: Claude implementa las tasks
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          claude_args: "--max-turns 25"
+          prompt: |
+            Implementa las tareas de specs/${{ env.FEATURE }}/tasks.md en src/.
+            Reglas OBLIGATORIAS (la CI las verifica y bloquea el merge si no se cumplen):
+            - Cada línea de código no trivial DEBE citar su REQ en comentario: # REQ-XXX-###.
+            - PROHIBIDO inventar un REQ que no exista en specs/${{ env.FEATURE }}/spec.md.
+            - Respeta las Policy Cards citadas en el spec (Ley 29733 / DS 016-2024-JUS).
+            - Usa el archivo context_kb.md (recuperado del KB) como contexto de apoyo.
+            - NO modifiques .specify/memory/ ni ci/.
+
+      # 4) Commit + PR → dispara el SDD Orchestrator (los 3 gates) sobre el resultado
+      - name: Abrir PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add -A
+          git commit -m "feat(${FEATURE}): implementación por agente SDD" || { echo "sin cambios"; exit 0; }
+          git push -u origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" \
+            --title "feat: ${FEATURE} (agente SDD)" \
+            --body "Implementación automática por el agente. Contexto vía Vertex AI Search. Sujeto a los 3 gates (vigencia normativa · trazabilidad · cobertura)."
