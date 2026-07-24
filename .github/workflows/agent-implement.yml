@@ -32,6 +32,23 @@ jobs:
         with: { python-version: "3.11" }
       - run: pip install -r requirements.txt aider-chat
 
+      # 0) Resuelve el FEATURE a la carpeta real de specs/.
+      #    Permite que el disparo traiga solo "FEAT-044" (p. ej. desde el título de un
+      #    issue de Linear) y aquí se expande a "FEAT-044-data-export".
+      - name: Resolver carpeta del feature
+        run: |
+          if [ ! -d "specs/$FEATURE" ]; then
+            ID=$(echo "$FEATURE" | grep -oE 'FEAT-[0-9]+' | head -1)
+            D=$(ls -d specs/${ID}-*/ 2>/dev/null | head -1)
+            if [ -n "$D" ]; then
+              echo "FEATURE=$(basename "$D")" >> "$GITHUB_ENV"
+              echo "Resuelto: $FEATURE -> $(basename "$D")"
+            else
+              echo "::error::No existe carpeta specs/ para '$FEATURE' (ni specs/${ID}-*/). El feature necesita su spec antes de que el agente lo implemente."
+              exit 1
+            fi
+          fi
+
       # 1) RETRIEVAL — contexto del KB (Vertex AI Search)
       - name: Gather context (Vertex)
         env:
