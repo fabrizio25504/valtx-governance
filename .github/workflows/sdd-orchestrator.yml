@@ -1,12 +1,11 @@
 name: SDD Orchestrator
 
-# Corre los mismos gates que ci/run_gates.py, en cada PR y ante disparadores
-# externos (Notion/Linear via repository_dispatch).
+# Corre los gates de gobernanza en cada PR (y manual). Los intakes externos ya no
+# entran aquí: notion-feature -> agent-specify (redacta spec), linear-task -> agent-implement
+# (implementa). Ambos abren PRs, y ESOS PRs son los que este Orchestrator valida.
 on:
   pull_request:
     branches: [ main, dev ]
-  repository_dispatch:
-    types: [ notion-feature, linear-task ]
   workflow_dispatch:
     inputs:
       feature:

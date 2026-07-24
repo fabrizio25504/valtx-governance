@@ -1,0 +1,106 @@
+name: SDD Agent — Specify
+
+# Cierra el ÚLTIMO tramo manual: convierte un PROMPT (desde Notion/Linear o manual) en
+# el borrador de spec.md + .feature (EARS + Gherkin) citando SOLO las Policy Cards que la
+# Capa 0 determina aplicables, y abre un PR para revisión humana. El agente REDACTA el spec;
+# el humano lo aprueba. Después, agent-implement.yml lo implementa.
+on:
+  repository_dispatch:
+    types: [ notion-feature ]
+  workflow_dispatch:
+    inputs:
+      feature:
+        description: "ID del feature (ej. FEAT-045)"
+        required: true
+      prompt:
+        description: "Qué se quiere construir (lenguaje natural)"
+        required: true
+      title:
+        description: "Título corto (opcional; para el nombre de carpeta)"
+        default: ""
+      model:
+        description: "Modelo del agente (aider): gpt-4o-mini, gpt-4o, claude-3-5-sonnet-20241022…"
+        default: "gpt-4o-mini"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  FEATURE: ${{ github.event.client_payload.feature || github.event.inputs.feature }}
+  PROMPT:  ${{ github.event.client_payload.prompt  || github.event.inputs.prompt }}
+  TITLE:   ${{ github.event.client_payload.title   || github.event.inputs.title }}
+  AGENT_MODEL: ${{ github.event.client_payload.model || github.event.inputs.model || 'gpt-4o-mini' }}
+
+jobs:
+  specify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install -r requirements.txt aider-chat
+
+      # 1) Resuelve ID + slug de carpeta; corta si el spec ya existe (idempotente).
+      - name: Preparar carpeta del feature
+        run: |
+          ID=$(echo "$FEATURE" | grep -oE 'FEAT-[0-9]+' | head -1)
+          [ -z "$ID" ] && { echo "::error::Falta un FEAT-### en '$FEATURE'"; exit 1; }
+          if ls -d specs/${ID}-*/ >/dev/null 2>&1; then
+            echo "Ya existe spec para $ID ($(ls -d specs/${ID}-*/)). Nada que generar."; exit 0
+          fi
+          BASE="${TITLE:-$PROMPT}"
+          SLUG=$(echo "$BASE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-*//;s/-*$//' | cut -c1-40 | sed 's/-*$//')
+          [ -z "$SLUG" ] && SLUG="feature"
+          echo "FEAT_ID=$ID" >> "$GITHUB_ENV"
+          echo "SPEC_DIR=specs/${ID}-${SLUG}" >> "$GITHUB_ENV"
+          echo "SLUG=$SLUG" >> "$GITHUB_ENV"
+          echo "Generaré: specs/${ID}-${SLUG}/"
+
+      # 2) CAPA 0 — router determinista: qué Policy Cards aplican a este prompt (0 tokens LLM).
+      - name: Router de aplicabilidad (Capa 0)
+        if: env.SPEC_DIR != ''
+        run: |
+          mkdir -p "$SPEC_DIR"
+          python ci/policy_router.py --prompt "$PROMPT" > capa0_context.md
+          echo "TAGS=$(python ci/policy_router.py --prompt "$PROMPT" --format tags)" >> "$GITHUB_ENV"
+          echo "POLICIES=$(python ci/policy_router.py --prompt "$PROMPT" --format json | python -c 'import sys,json;print(",".join(json.load(sys.stdin)["policies"]))')" >> "$GITHUB_ENV"
+          echo "----- Capa 0 -----"; cat capa0_context.md
+
+      # 3) AGENTE redacta spec.md + .feature (agnóstico, aider). Cita solo las policies del router.
+      - name: Agente redacta el spec
+        if: env.SPEC_DIR != ''
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          aider --model "$AGENT_MODEL" --yes-always --no-auto-commit --no-check-update \
+            --no-stream --no-analytics \
+            --read .specify/templates/spec-template.md --read capa0_context.md \
+            --file "$SPEC_DIR/spec.md" --file "$SPEC_DIR/${SLUG}.feature" \
+            --message "Redacta el SPEC del feature $FEAT_ID a partir de este requerimiento del usuario: \"$PROMPT\".
+            Escribe DOS archivos:
+            A) $SPEC_DIR/spec.md con front-matter YAML: id: $FEAT_ID | titulo | tags: [$TAGS] | policies: [$POLICIES] | owner: producto@valtx.pe | estado: draft. Luego seccion Contexto, seccion 'Requisitos (EARS)' y una tabla 'Normas cumplidas'.
+            B) $SPEC_DIR/${SLUG}.feature en Gherkin español (primera linea '# language: es').
+            REGLAS OBLIGATORIAS que la CI verifica y bloquea:
+            (1) Cada requisito es EARS ('WHEN/WHERE/IF ... THE SYSTEM SHALL ...') con id REQ-<AREA>-### (AREA = 3-4 letras mayusculas coherentes, p.ej. REQ-EXP-001).
+            (2) Cada REQ cita en su texto UNA Policy Card de la lista [$POLICIES] con su articulo (usa el bloque 'CAPA 0' del contexto). NO cites policies fuera de esa lista. NO inventes leyes.
+            (3) El .feature tiene EXACTAMENTE un Escenario por cada REQ, etiquetado con '@REQ-<AREA>-###' identico al del spec (el gate de cobertura exige 100%).
+            (4) NO escribas codigo de implementacion, NO toques ci/ ni .specify/memory/ ni otros features. Solo estos dos archivos."
+
+      # 4) PR para revisión humana (con PAT personal → evita la restricción org de Actions).
+      - name: Abrir PR del spec
+        if: env.SPEC_DIR != ''
+        env:
+          GH_TOKEN: ${{ secrets.DISPATCH_PAT }}
+        run: |
+          git config user.name  "sdd-agent"
+          git config user.email "sdd-agent@valtx.pe"
+          BRANCH="spec/${FEAT_ID}-${GITHUB_RUN_ID}"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "spec(${FEAT_ID}): borrador generado por agente (${AGENT_MODEL})" || { echo "sin cambios"; exit 0; }
+          git push -u origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" \
+            --title "spec: ${FEAT_ID} (borrador · agente)" \
+            --body "Borrador de spec generado desde el prompt del usuario. Capa 0 aplicó: ${POLICIES:-(ninguna)}. **Revisión humana requerida** antes de implementar. Los gates corren en draft (cobertura EARS↔Gherkin 100%; implementación aún no exigida)."

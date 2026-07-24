@@ -18,9 +18,18 @@ except Exception: pass
 REQ = re.compile(r"REQ-[A-Z]+-\d+")
 TRIVIAL = re.compile(r"^\s*(#|\"\"\"|'''|import |from |def |class |else|elif|try|except|finally|@|\)|\}|return\s*$|pass\b)")
 
+# Un feature en estos estados aún no exige código: el spec puede vivir sin implementar
+# (flujo spec-first). Al salir de draft, la falta de implementación vuelve a bloquear.
+DRAFT_STATES = {"draft", "borrador", "spec", "propuesto", "propuesta"}
+
 
 def declared_reqs(spec_path):
     return set(REQ.findall(open(spec_path, encoding="utf-8").read()))
+
+
+def spec_estado(spec_path):
+    m = re.search(r"^\s*estado:\s*(\S+)", open(spec_path, encoding="utf-8").read(), re.M)
+    return m.group(1).strip().lower() if m else ""
 
 
 def all_declared_reqs():
@@ -66,20 +75,28 @@ def scan_code(src):
 def main(spec_path, src):
     decl = declared_reqs(spec_path)        # REQ de ESTE feature (para "uncovered")
     universe = all_declared_reqs()         # REQ de TODOS los specs (para "orphan")
+    estado = spec_estado(spec_path)        # draft => aún no exige implementación
     cited, uncited = scan_code(src)
     orphans = cited - universe              # citado en código, inexistente en cualquier spec
     uncovered = decl - cited                # REQ de este feature sin implementar
 
-    print(f"\n=== Gate de trazabilidad (feature: {len(decl)} REQ | universo: {len(universe)} REQ | código cita: {len(cited)} REQ) ===")
+    print(f"\n=== Gate de trazabilidad (feature: {len(decl)} REQ | universo: {len(universe)} REQ | código cita: {len(cited)} REQ | estado: {estado or '—'}) ===")
     rc = 0
-    if orphans:
+    if orphans:                             # la alucinación bloquea SIEMPRE, en cualquier estado
         rc = 1
         print(f"  ✗ ALUCINACIÓN — {len(orphans)} REQ citado(s) en código que NO existen en el spec:")
         for r in sorted(orphans):
             print(f"       {r}   <- inventado por el agente; bloquea merge")
     if uncovered:
-        rc = 1
-        print(f"  ✗ SIN IMPLEMENTAR — {len(uncovered)} REQ del spec nunca citado en código:")
+        implemented_any = bool(decl & cited)   # ¿el feature ya tiene algo de código?
+        # Se exige implementación si ya empezó (parcial) o si salió de draft.
+        enforce = implemented_any or (estado and estado not in DRAFT_STATES)
+        if enforce:
+            rc = 1
+            reason = "implementación parcial" if implemented_any else f"estado '{estado}' exige código"
+            print(f"  ✗ SIN IMPLEMENTAR — {len(uncovered)} REQ del spec sin código ({reason}):")
+        else:
+            print(f"  ⚠ SPEC-FIRST — {len(uncovered)} REQ aún sin implementar (spec en draft sin código; se advierte, no bloquea):")
         for r in sorted(uncovered):
             print(f"       {r}")
     if uncited:
