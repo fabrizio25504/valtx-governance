@@ -74,6 +74,21 @@ jobs:
             python ci/update_notion.py --feature "$FEATURE" --status en_curso --pr-url "$PR"
           fi
 
+      # --- Write-back a Linear (feedback a Ingeniería) — nunca rompe la CI ---
+      - name: Linear write-back
+        if: always()
+        env:
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+        run: |
+          PR="${{ github.event.pull_request.html_url }}"
+          if [ "${{ steps.freshness.outcome }}" = "failure" ]; then
+            python ci/sync_linear.py --feature "$FEATURE" --status bloqueado --gate "vigencia normativa" --pr-url "$PR"
+          elif [ "${{ steps.gates.outcome }}" = "failure" ]; then
+            python ci/sync_linear.py --feature "$FEATURE" --status bloqueado --gate "trazabilidad/cobertura" --pr-url "$PR"
+          else
+            python ci/sync_linear.py --feature "$FEATURE" --status en_curso --pr-url "$PR"
+          fi
+
       # --- Mejoras del flujo (activar cuando haya secrets) ---
       # - name: SAST + secret scanning
       #   uses: github/codeql-action/analyze@v3

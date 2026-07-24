@@ -24,16 +24,18 @@ jobs:
       - name: Marcar features mergeados como Listo
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
           CHANGED=$(git diff --name-only HEAD^ HEAD || true)
           MSG=$(git log -1 --pretty=%B || true)
           FEATS=$(printf "%s\n%s\n" "$CHANGED" "$MSG" | grep -oE "FEAT-[0-9]+" | sort -u)
           if [ -z "$FEATS" ]; then echo "Sin FEAT-### en este merge — nada que notificar."; exit 0; fi
+          URL="${{ github.event.head_commit.url }}"
           for f in $FEATS; do
             echo "----- $f → Listo -----"
             # Usa la carpeta real del feature para que el mensaje incluya sus policies.
             DIR=$(ls -d specs/${f}-*/ 2>/dev/null | head -1)
             NAME=$([ -n "$DIR" ] && basename "$DIR" || echo "$f")
-            python ci/update_notion.py --feature "$NAME" --status listo \
-              --pr-url "${{ github.event.head_commit.url }}" || true
+            python ci/update_notion.py --feature "$NAME" --status listo --pr-url "$URL" || true
+            python ci/sync_linear.py  --feature "$NAME" --status listo --pr-url "$URL" || true
           done
