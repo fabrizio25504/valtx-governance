@@ -44,17 +44,16 @@ def search(query, top=5):
     body = {
         "query": query,
         "pageSize": top,
-        "contentSearchSpec": {
-            "snippetSpec": {"returnSnippet": True},
-            "extractiveContentSpec": {"maxExtractiveAnswerCount": 1},
-        },
+        "contentSearchSpec": {"snippetSpec": {"returnSnippet": True}},
     }
     r = requests.post(url, json=body, timeout=30, headers={
         "Authorization": f"Bearer {token}",
         "X-Goog-User-Project": PROJECT,
         "Content-Type": "application/json",
     })
-    r.raise_for_status()
+    if not r.ok:  # surface el mensaje real de Discovery Engine
+        print(f"HTTP {r.status_code} en {url}\n{r.text}", file=sys.stderr)
+        r.raise_for_status()
     return r.json()
 
 
