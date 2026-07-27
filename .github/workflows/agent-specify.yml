@@ -19,8 +19,8 @@ on:
         description: "Título corto (opcional; para el nombre de carpeta)"
         default: ""
       model:
-        description: "Modelo del agente (aider): gpt-4o-mini, gpt-4o, claude-3-5-sonnet-20241022…"
-        default: "gpt-4o-mini"
+        description: "Modelo del agente (aider, prefijo openai/ para APIs compatibles): openai/z-ai/glm-5.2 (NVIDIA NIM), gpt-4o-mini, claude-3-5-sonnet-20241022…"
+        default: "openai/z-ai/glm-5.2"
 
 permissions:
   contents: write
@@ -30,7 +30,7 @@ env:
   FEATURE: ${{ github.event.client_payload.feature || github.event.inputs.feature }}
   PROMPT:  ${{ github.event.client_payload.prompt  || github.event.inputs.prompt }}
   TITLE:   ${{ github.event.client_payload.title   || github.event.inputs.title }}
-  AGENT_MODEL: ${{ github.event.client_payload.model || github.event.inputs.model || 'gpt-4o-mini' }}
+  AGENT_MODEL: ${{ github.event.client_payload.model || github.event.inputs.model || 'openai/z-ai/glm-5.2' }}
 
 jobs:
   specify:
@@ -71,7 +71,8 @@ jobs:
       - name: Agente redacta el spec
         if: env.SPEC_DIR != ''
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_BASE: https://integrate.api.nvidia.com/v1
+          OPENAI_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           aider --model "$AGENT_MODEL" --yes-always --no-auto-commit --no-check-update \

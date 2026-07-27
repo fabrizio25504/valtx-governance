@@ -1,30 +1,32 @@
 name: SDD Agent — Implement
 
-# Cierra el brazo de implementación: ante un linear-task (o manual), recupera contexto
-# del KB (Vertex), el agente (aider — AGNÓSTICO al LLM) implementa las tasks citando REQ,
-# y abre un PR que pasa por los 3 gates del SDD Orchestrator.
+# Cierra el brazo de implementación: ante un issue de GitHub con label "implement"
+# (título con FEAT-###) o disparo manual, recupera contexto del KB (Vertex), el agente
+# (aider — AGNÓSTICO al LLM) implementa las tasks citando REQ, y abre un PR que pasa
+# por los gates del SDD Orchestrator.
 on:
-  repository_dispatch:
-    types: [ linear-task ]
+  issues:
+    types: [ labeled ]
   workflow_dispatch:
     inputs:
       feature:
         description: "Carpeta del feature en specs/"
         default: "FEAT-044-data-export"
       model:
-        description: "Modelo del agente (aider/LiteLLM): gpt-4o-mini, gpt-4o, claude-3-5-sonnet-20241022…"
-        default: "gpt-4o-mini"
+        description: "Modelo del agente (aider, prefijo openai/ para APIs compatibles): openai/z-ai/glm-5.2 (NVIDIA NIM), gpt-4o-mini, claude-3-5-sonnet-20241022…"
+        default: "openai/z-ai/glm-5.2"
 
 permissions:
   contents: write
   pull-requests: write
 
 env:
-  FEATURE: ${{ github.event.client_payload.feature || github.event.inputs.feature || 'FEAT-044-data-export' }}
-  AGENT_MODEL: ${{ github.event.client_payload.model || github.event.inputs.model || 'gpt-4o-mini' }}
+  FEATURE: ${{ github.event.issue.title || github.event.inputs.feature || 'FEAT-044-data-export' }}
+  AGENT_MODEL: ${{ github.event.inputs.model || 'openai/z-ai/glm-5.2' }}
 
 jobs:
   implement:
+    if: github.event_name != 'issues' || github.event.label.name == 'implement'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,7 +36,7 @@ jobs:
 
       # 0) Resuelve el FEATURE a la carpeta real de specs/.
       #    Permite que el disparo traiga solo "FEAT-044" (p. ej. desde el título de un
-      #    issue de Linear) y aquí se expande a "FEAT-044-data-export".
+      #    issue de GitHub) y aquí se expande a "FEAT-044-data-export".
       - name: Resolver carpeta del feature
         run: |
           if [ ! -d "specs/$FEATURE" ]; then
@@ -68,7 +70,8 @@ jobs:
       # 3) AGENTE (aider, agnóstico) — implementa citando REQ, con el spec + gherkin + KB como contexto
       - name: Agente implementa (aider)
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_API_BASE: https://integrate.api.nvidia.com/v1
+          OPENAI_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           READS="--read specs/$FEATURE/spec.md"

@@ -15,6 +15,7 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write
 
 # Feature a evaluar, resuelto según el disparador:
 #  - repository_dispatch (Notion/Linear): client_payload.feature
@@ -74,19 +75,22 @@ jobs:
             python ci/update_notion.py --feature "$FEATURE" --status en_curso --pr-url "$PR"
           fi
 
-      # --- Write-back a Linear (feedback a Ingeniería) — nunca rompe la CI ---
-      - name: Linear write-back
+      # --- Write-back al GitHub Issue del feature (feedback a Ingeniería) — nunca rompe la CI ---
+      - name: GitHub Issue write-back
         if: always()
         env:
-          LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          FID=$(echo "$FEATURE" | grep -oE 'FEAT-[0-9]+' | head -1)
+          NUM=$(gh issue list --search "$FID in:title" --state all --json number -q '.[0].number' || true)
+          if [ -z "$NUM" ]; then echo "Sin issue para $FID — nada que actualizar."; exit 0; fi
           PR="${{ github.event.pull_request.html_url }}"
           if [ "${{ steps.freshness.outcome }}" = "failure" ]; then
-            python ci/sync_linear.py --feature "$FEATURE" --status bloqueado --gate "vigencia normativa" --pr-url "$PR"
+            gh issue comment "$NUM" --body "❌ **SDD**: bloqueado por gate **vigencia normativa**. [PR]($PR)"
           elif [ "${{ steps.gates.outcome }}" = "failure" ]; then
-            python ci/sync_linear.py --feature "$FEATURE" --status bloqueado --gate "trazabilidad/cobertura" --pr-url "$PR"
+            gh issue comment "$NUM" --body "❌ **SDD**: bloqueado por gate **trazabilidad/cobertura**. [PR]($PR)"
           else
-            python ci/sync_linear.py --feature "$FEATURE" --status en_curso --pr-url "$PR"
+            gh issue comment "$NUM" --body "🟡 **SDD**: gates verdes — en revisión humana / pendiente de merge. [PR]($PR)"
           fi
 
       # --- Mejoras del flujo (activar cuando haya secrets) ---
