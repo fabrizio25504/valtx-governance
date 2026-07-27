@@ -45,12 +45,35 @@ jobs:
       - name: Preparar carpeta del feature
         run: |
           ID=$(echo "$FEATURE" | grep -oE 'FEAT-[0-9]+' | head -1)
-          [ -z "$ID" ] && { echo "::error::Falta un FEAT-### en '$FEATURE'"; exit 1; }
+          AUTO_ID=false
+          if [ -z "$ID" ]; then
+            # Sin FEAT-### explícito (ej. Notion/n8n con solo texto libre): autogenera
+            # el siguiente número. Mismo algoritmo que create-new-feature.sh de spec-kit
+            # (escanea specs/, toma el más alto, +1, padding 3 dígitos), adaptado al
+            # prefijo FEAT- de este repo (spec-kit escanea "NNN-", no "FEAT-NNN-").
+            AUTO_ID=true
+            HIGHEST=0
+            for dir in specs/FEAT-*/; do
+              [ -d "$dir" ] || continue
+              n=$(basename "$dir" | sed -nE 's/^FEAT-([0-9]+)-.*/\1/p')
+              [ -n "$n" ] && [ "$((10#$n))" -gt "$HIGHEST" ] && HIGHEST=$((10#$n))
+            done
+            NEXT=$(printf "%03d" $((HIGHEST + 1)))
+            ID="FEAT-${NEXT}"
+            echo "Sin FEAT-### en '$FEATURE' — autogenerado: $ID"
+          fi
           if ls -d specs/${ID}-*/ >/dev/null 2>&1; then
             echo "Ya existe spec para $ID ($(ls -d specs/${ID}-*/)). Nada que generar."; exit 0
           fi
           BASE="${TITLE:-$PROMPT}"
-          SLUG=$(echo "$BASE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-*//;s/-*$//' | cut -c1-40 | sed 's/-*$//')
+          if [ "$AUTO_ID" = true ]; then
+            [ -n "$BASE" ] || BASE="$FEATURE"
+            # ponytail: kebab-case simple (primeras 2-4 palabras), sin el filtro de
+            # stop-words de spec-kit — agregar si el slug generado sale poco descriptivo.
+            SLUG=$(echo "$BASE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-*//;s/-*$//' | tr '-' '\n' | grep -v '^$' | head -4 | tr '\n' '-' | sed 's/-$//')
+          else
+            SLUG=$(echo "$BASE" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-*//;s/-*$//' | cut -c1-40 | sed 's/-*$//')
+          fi
           [ -z "$SLUG" ] && SLUG="feature"
           echo "FEAT_ID=$ID" >> "$GITHUB_ENV"
           echo "SPEC_DIR=specs/${ID}-${SLUG}" >> "$GITHUB_ENV"
