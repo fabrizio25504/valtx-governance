@@ -1,0 +1,1 @@
+💸 **Costo del agente** · `FEAT-050`/specify · modelo `openai/z-ai/glm-5.2` · in 3,800 / out 1,300 tok · **$0.0000** (estimado)
