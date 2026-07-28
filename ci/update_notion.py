@@ -25,7 +25,7 @@ except Exception:
     pass
 
 NOTION_TOKEN = os.environ.get("NOTION_TOKEN", "")
-DB_ID = os.environ.get("NOTION_DB", "3a64519d-94d4-804d-8537-e499145574ce")
+DB_ID = os.environ.get("NOTION_DB", "")
 API = "https://api.notion.com/v1"
 HEADERS = {
     "Authorization": f"Bearer {NOTION_TOKEN}",
@@ -33,10 +33,10 @@ HEADERS = {
     "Content-Type": "application/json",
 }
 
-# Estos nombres de opción deben EXISTIR en la propiedad status "Estado" de Notion.
+# Estos nombres de opción deben EXISTIR en la propiedad select "Estado" de Notion.
 STATUS_MAP = {
     "en_curso": "En curso",
-    "listo": "Listo",
+    "listo": "Completado",
     "bloqueado": "Bloqueado",
 }
 
@@ -93,8 +93,8 @@ def compliance_text(status_key, policies, gate, pr_url):
 
 def update_page(page_id, status_name, text):
     props = {
-        "Estado": {"status": {"name": status_name}},
-        "Cumplimiento": {"rich_text": [{"text": {"content": text[:1900]}}]},
+        "Estado": {"select": {"name": status_name}},
+        "Notas": {"rich_text": [{"text": {"content": text[:1900]}}]},
     }
     r = requests.patch(f"{API}/pages/{page_id}", headers=HEADERS, json={"properties": props}, timeout=30)
     if r.status_code >= 400:
@@ -105,10 +105,10 @@ def update_page(page_id, status_name, text):
 def create_page(fid, nombre, status_name, text):
     """Crea la fila si el feature nació por CLI/dispatch y aún no existe en Notion."""
     props = {
-        "Nombre": {"title": [{"text": {"content": nombre or fid}}]},
+        "Feature": {"title": [{"text": {"content": nombre or fid}}]},
         "Feature ID": {"rich_text": [{"text": {"content": fid}}]},
-        "Estado": {"status": {"name": status_name}},
-        "Cumplimiento": {"rich_text": [{"text": {"content": text[:1900]}}]},
+        "Estado": {"select": {"name": status_name}},
+        "Notas": {"rich_text": [{"text": {"content": text[:1900]}}]},
     }
     body = {"parent": {"database_id": DB_ID}, "properties": props}
     r = requests.post(f"{API}/pages", headers=HEADERS, json=body, timeout=30)
@@ -127,6 +127,9 @@ def main():
 
     if not NOTION_TOKEN:
         print("[notion] NOTION_TOKEN vacío — se omite write-back (no rompe la CI).")
+        return 0
+    if not DB_ID:
+        print("[notion] NOTION_DB vacío — se omite write-back (no rompe la CI).")
         return 0
 
     fid = feature_id(args.feature)

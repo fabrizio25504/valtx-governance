@@ -65,6 +65,7 @@ jobs:
         if: always()
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DB: ${{ vars.NOTION_DB }}
         run: |
           PR="${{ github.event.pull_request.html_url }}"
           if [ "${{ steps.freshness.outcome }}" = "failure" ]; then

@@ -25,6 +25,7 @@ jobs:
       - name: Marcar features mergeados como Listo
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DB: ${{ vars.NOTION_DB }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           CHANGED=$(git diff --name-only HEAD^ HEAD || true)
