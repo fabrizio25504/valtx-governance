@@ -1,1 +1,1 @@
-💸 **Costo del agente** · `FEAT-050-feature-simple-para-que-los-empleados-re`/implement · modelo `openai/z-ai/glm-5.2` · in 2,700 / out 81 tok · **$0.0000** (estimado)
+💸 **Costo del agente** · `FEAT-051`/specify · modelo `openai/z-ai/glm-5.2` · in 3,900 / out 1,400 tok · **$0.0000** (estimado)
