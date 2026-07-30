@@ -1,1 +1,1 @@
-💸 **Costo del agente** · `FEAT-051`/specify · modelo `openai/z-ai/glm-5.2` · in 3,900 / out 1,400 tok · **$0.0000** (estimado)
+💸 **Costo del agente** · `FEAT-051-calendario-interno-de-eventos`/implement · modelo `openai/z-ai/glm-5.2` · in 3,000 / out 1,100 tok · **$0.0000** (estimado)
