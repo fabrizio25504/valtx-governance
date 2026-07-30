@@ -1,7 +1,9 @@
 name: SDD Notify — Merge
 
-# Cierra el lazo de feedback: cuando un feature entra a main (mergeado y con gates
-# verdes, por definición de la protección de rama), marca su fila en Notion como "Listo".
+# Cierra el lazo de feedback: cuando algo entra a main, decide si fue merge de SPEC
+# o merge de CÓDIGO mirando el ESTADO DE LOS ARTEFACTOS (mismo criterio que el gate
+# de trazabilidad: REQ del spec citados en src/), no el nombre de rama ni el mensaje
+# de commit — ambos se pierden o se ensucian según la estrategia de merge usada.
 on:
   push:
     branches: [ main ]
@@ -20,25 +22,61 @@ jobs:
         with: { python-version: "3.11" }
       - run: pip install -r requirements.txt
 
-      # Deriva los FEAT-### que tocó este merge: de los archivos cambiados y del
-      # mensaje del commit (el squash suele decir "feat: FEAT-044 ...").
-      - name: Marcar features mergeados como Listo
+      # Deriva los FEAT-### que tocó este merge (archivos cambiados + mensaje del
+      # commit), y por cada uno clasifica la etapa contando REQ-XXX-### del spec
+      # citados en src/ — mismo criterio que el UNCOVERED de check_traceability.py.
+      - name: Clasificar etapa y sincronizar Notion/Issues
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
           NOTION_DB: ${{ vars.NOTION_DB }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.DISPATCH_PAT }}
         run: |
           CHANGED=$(git diff --name-only HEAD^ HEAD || true)
           MSG=$(git log -1 --pretty=%B || true)
           FEATS=$(printf "%s\n%s\n" "$CHANGED" "$MSG" | grep -oE "FEAT-[0-9]+" | sort -u)
           if [ -z "$FEATS" ]; then echo "Sin FEAT-### en este merge — nada que notificar."; exit 0; fi
           URL="${{ github.event.head_commit.url }}"
+          gh label create implement --force || true
           for f in $FEATS; do
-            echo "----- $f → Listo -----"
-            # Usa la carpeta real del feature para que el mensaje incluya sus policies.
             DIR=$(ls -d specs/${f}-*/ 2>/dev/null | head -1)
             NAME=$([ -n "$DIR" ] && basename "$DIR" || echo "$f")
-            python ci/update_notion.py --feature "$NAME" --status listo --pr-url "$URL" || true
-            NUM=$(gh issue list --search "$f in:title" --state all --json number -q '.[0].number' || true)
-            [ -n "$NUM" ] && gh issue close "$NUM" --comment "✅ **SDD**: mergeado a main. [commit]($URL)" || true
+            SPEC="specs/${NAME}/spec.md"
+            if [ ! -f "$SPEC" ]; then echo "----- $f: sin spec.md, se omite -----"; continue; fi
+
+            TOTAL_REQS=$(grep -ohE 'REQ-[A-Z]+-[0-9]+' "$SPEC" | sort -u)
+            TOTAL=$(printf "%s\n" "$TOTAL_REQS" | grep -c . || true)
+            HIT_REQS=$(comm -12 <(printf "%s\n" "$TOTAL_REQS") <(grep -rohE 'REQ-[A-Z]+-[0-9]+' src/ 2>/dev/null | sort -u))
+            HITS=$(printf "%s\n" "$HIT_REQS" | grep -c . || true)
+
+            echo "----- $f: $HITS/$TOTAL REQ implementados -----"
+            if [ "$TOTAL" -gt 0 ] && [ "$HITS" -eq "$TOTAL" ]; then
+              # Todo REQ del spec está citado en src/ -> merge de CÓDIGO.
+              python ci/update_notion.py --feature "$NAME" --status listo --pr-url "$URL" || true
+              NUM=$(gh issue list --search "$f in:title" --state open --json number -q '.[0].number' || true)
+              [ -n "$NUM" ] && gh issue close "$NUM" --comment "✅ **SDD**: mergeado a main. [commit]($URL)" || true
+            elif [ "$HITS" -gt 0 ]; then
+              # Implementación parcial: el Gate 3 (UNCOVERED) debería haber bloqueado esto.
+              echo "  ⚠ implementación parcial ($HITS/$TOTAL) — el gate de trazabilidad debería haber bloqueado este merge"
+              python ci/update_notion.py --feature "$NAME" --status en_curso --pr-url "$URL" || true
+            else
+              # 0 REQ citados en src/ -> merge de SPEC. Marca "listo para implementar"
+              # y abre el Issue de implementación si todavía no existe uno.
+              python ci/update_notion.py --feature "$NAME" --status para_implementar --pr-url "$URL" || true
+              EXISTING=$(gh issue list --search "$f in:title" --state all --json number -q '.[0].number' || true)
+              if [ -z "$EXISTING" ]; then
+                # DISPATCH_PAT (no GITHUB_TOKEN): las acciones con GITHUB_TOKEN no emiten
+                # eventos (regla anti-recursión de GitHub) y agent-implement.yml nunca dispararía.
+                ISSUE_URL=$(gh issue create --title "$NAME" \
+                  --body "Spec aprobado y mergeado a main. Implementar según specs/${NAME}/spec.md. [commit]($URL)")
+                # Label en llamada separada A PROPÓSITO: agent-implement.yml dispara con
+                # `on: issues: types: [labeled]`. Crear el issue con --label en el mismo
+                # paso puede emitir solo el evento `opened` (no `labeled`) y el workflow
+                # nunca arrancaría. No "simplificar" esto a una sola llamada.
+                NUM=$(gh issue view "$ISSUE_URL" --json number -q .number)
+                gh issue edit "$NUM" --add-label implement
+                echo "  → Issue #$NUM creado y etiquetado 'implement'"
+              else
+                echo "  → ya existe issue #$EXISTING para $f, no se crea otro"
+              fi
+            fi
           done
