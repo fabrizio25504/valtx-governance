@@ -3,3 +3,9 @@ __pycache__/
 metrics/
 .venv/
 .aider*
+.vscode/
+.specify/feature.json
+.specify/workflows/runs/
+.specify/templates/*.backup
+.opencode/
+.claude/skills_disabled/
