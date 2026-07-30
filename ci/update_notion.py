@@ -35,8 +35,10 @@ HEADERS = {
 
 # Estos nombres de opción deben EXISTIR en la propiedad select "Estado" de Notion.
 STATUS_MAP = {
+    "borrador": "Borrador",
+    "para_implementar": "Listo para implementar",
     "en_curso": "En curso",
-    "listo": "Completado",
+    "listo": "Completado",  # se deja así por compat con sdd-orchestrator.yml
     "bloqueado": "Bloqueado",
 }
 
@@ -80,6 +82,8 @@ def find_page(fid):
 
 def compliance_text(status_key, policies, gate, pr_url):
     verdict = {
+        "borrador": "spec en borrador",
+        "para_implementar": "spec aprobado y mergeado · pendiente de implementación",
         "listo": "gates ✅ (vigencia · trazabilidad · cobertura) · mergeado",
         "en_curso": "en implementación / revisión humana",
         "bloqueado": f"❌ bloqueado por gate: {gate or 'desconocido'}",
