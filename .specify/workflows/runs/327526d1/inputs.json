@@ -1,0 +1,7 @@
+{
+  "inputs": {
+    "spec": "Desarrolla una feature simple para reservar salas de reuniones (que sala, quien reserva, fecha y hora, duracion)",
+    "integration": "opencode",
+    "scope": "full"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "run_id": "4e539c49",
+  "workflow_id": "speckit",
+  "installed_workflow_id": "speckit",
+  "installed_registry_root": null,
+  "status": "failed",
+  "current_step_index": 0,
+  "current_step_id": "specify",
+  "step_results": {
+    "specify": {
+      "type": "command",
+      "integration": "opencode",
+      "model": null,
+      "options": {},
+      "input": {
+        "args": "Desarrolla una feature simple para reservar salas de reuniones (que sala, quien reserva, fecha y hora, duracion)"
+      },
+      "output": {
+        "command": "speckit.specify",
+        "integration": "opencode",
+        "model": null,
+        "options": {},
+        "input": {
+          "args": "Desarrolla una feature simple para reservar salas de reuniones (que sala, quien reserva, fecha y hora, duracion)"
+        },
+        "exit_code": 130,
+        "stdout": "",
+        "stderr": "Interrupted by user",
+        "dispatched": true
+      },
+      "status": "failed"
+    }
+  },
+  "workflow_dir": "D:\\Usuarios\\fmantarif\\Desktop\\valtx-governance\\.specify\\workflows\\speckit",
+  "created_at": "2026-07-27T17:02:29.538387+00:00",
+  "updated_at": "2026-07-27T17:15:25.123554+00:00"
+}

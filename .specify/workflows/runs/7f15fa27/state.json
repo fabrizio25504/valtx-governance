@@ -1,0 +1,60 @@
+{
+  "run_id": "7f15fa27",
+  "workflow_id": "speckit",
+  "installed_workflow_id": "speckit",
+  "installed_registry_root": null,
+  "status": "failed",
+  "current_step_index": 1,
+  "current_step_id": "plan",
+  "step_results": {
+    "specify": {
+      "type": "command",
+      "integration": "opencode",
+      "model": null,
+      "options": {},
+      "input": {
+        "args": "desarrolla una feature que sirva para registrar tickets de atencion TI, algo simple"
+      },
+      "output": {
+        "command": "speckit.specify",
+        "integration": "opencode",
+        "model": null,
+        "options": {},
+        "input": {
+          "args": "desarrolla una feature que sirva para registrar tickets de atencion TI, algo simple"
+        },
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": "",
+        "dispatched": true
+      },
+      "status": "completed"
+    },
+    "plan": {
+      "type": "command",
+      "integration": "opencode",
+      "model": null,
+      "options": {},
+      "input": {
+        "args": "desarrolla una feature que sirva para registrar tickets de atencion TI, algo simple"
+      },
+      "output": {
+        "command": "speckit.plan",
+        "integration": "opencode",
+        "model": null,
+        "options": {},
+        "input": {
+          "args": "desarrolla una feature que sirva para registrar tickets de atencion TI, algo simple"
+        },
+        "exit_code": 130,
+        "stdout": "",
+        "stderr": "Interrupted by user",
+        "dispatched": true
+      },
+      "status": "failed"
+    }
+  },
+  "workflow_dir": "D:\\Usuarios\\fmantarif\\Desktop\\valtx-governance\\.specify\\workflows\\speckit",
+  "created_at": "2026-07-27T15:58:13.884831+00:00",
+  "updated_at": "2026-07-27T16:10:57.591864+00:00"
+}

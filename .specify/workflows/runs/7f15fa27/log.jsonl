@@ -1,0 +1,6 @@
+{"event": "step_started", "step_id": "specify", "type": "command", "timestamp": "2026-07-27T15:58:13.896134+00:00"}
+{"event": "step_completed", "step_id": "specify", "status": "completed", "timestamp": "2026-07-27T16:04:07.673900+00:00"}
+{"event": "step_started", "step_id": "plan", "type": "command", "timestamp": "2026-07-27T16:04:07.678524+00:00"}
+{"event": "step_completed", "step_id": "plan", "status": "failed", "timestamp": "2026-07-27T16:10:57.586281+00:00"}
+{"event": "step_failed", "step_id": "plan", "error": "Interrupted by user", "timestamp": "2026-07-27T16:10:57.586971+00:00"}
+{"event": "workflow_finished", "status": "failed", "timestamp": "2026-07-27T16:10:57.591209+00:00"}
