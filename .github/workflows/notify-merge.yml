@@ -62,18 +62,32 @@ jobs:
               # 0 REQ citados en src/ -> merge de SPEC. Marca "listo para implementar"
               # y abre el Issue de implementación si todavía no existe uno.
               python ci/update_notion.py --feature "$NAME" --status para_implementar --pr-url "$URL" || true
+              # gh issue list --search pasa por el índice de búsqueda de GraphQL, igual
+              # que la lectura que causaba la race condition de abajo — pero acá solo
+              # consulta issues YA existentes (de un merge anterior), nunca el que este
+              # mismo run acaba de crear, así que no compite contra su propia escritura.
               EXISTING=$(gh issue list --search "$f in:title" --state all --json number -q '.[0].number' || true)
               if [ -z "$EXISTING" ]; then
                 # DISPATCH_PAT (no GITHUB_TOKEN): las acciones con GITHUB_TOKEN no emiten
                 # eventos (regla anti-recursión de GitHub) y agent-implement.yml nunca dispararía.
-                ISSUE_URL=$(gh issue create --title "$NAME" \
-                  --body "Spec aprobado y mergeado a main. Implementar según specs/${NAME}/spec.md. [commit]($URL)")
-                # Label en llamada separada A PROPÓSITO: agent-implement.yml dispara con
-                # `on: issues: types: [labeled]`. Crear el issue con --label en el mismo
-                # paso puede emitir solo el evento `opened` (no `labeled`) y el workflow
-                # nunca arrancaría. No "simplificar" esto a una sola llamada.
-                NUM=$(gh issue view "$ISSUE_URL" --json number -q .number)
-                gh issue edit "$NUM" --add-label implement
+                #
+                # Todo por REST (gh api), NO por GraphQL (gh issue create/view --json):
+                # gh issue create escribe por REST pero gh issue view --json cambia de
+                # transporte a GraphQL, que lee de réplicas con lag de unos milisegundos
+                # respecto de la escritura REST. En CI las dos llamadas salen seguidas y
+                # la lectura GraphQL puede no ver todavía el issue recién creado por REST
+                # ("Could not resolve to an issue... (repository.issue)"). El número sale
+                # directo de la respuesta del POST, sin una lectura aparte que pueda perder
+                # la carrera.
+                NUM=$(gh api "repos/$GITHUB_REPOSITORY/issues" \
+                        -f title="$NAME" \
+                        -f body="Spec aprobado y mergeado a main. Implementar según specs/${NAME}/spec.md. [commit]($URL)" \
+                        --jq .number)
+                # Label en llamada REST separada A PROPÓSITO: agent-implement.yml dispara
+                # con `on: issues: types: [labeled]`. Crear el issue con el label en el
+                # mismo paso puede emitir solo el evento `opened` (no `labeled`) y el
+                # workflow nunca arrancaría. No "simplificar" esto a una sola llamada.
+                gh api "repos/$GITHUB_REPOSITORY/issues/$NUM/labels" -f "labels[]=implement"
                 echo "  → Issue #$NUM creado y etiquetado 'implement'"
               else
                 echo "  → ya existe issue #$EXISTING para $f, no se crea otro"
