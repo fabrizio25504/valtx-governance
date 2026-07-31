@@ -1,0 +1,13 @@
+# Features anteriores a Gate 5 — exentos SOLO de este gate (ejecución real de
+# los escenarios Gherkin vía pytest-bdd). Siguen pasando por los gates 1-4
+# (vigencia normativa, consistencia normativa, trazabilidad, cobertura), que
+# conservan su valor como red de regresión.
+#
+# Este archivo vive en .specify/memory/, el directorio que el agente tiene
+# PROHIBIDO tocar: la exención es una decisión humana registrada, no algo de
+# lo que un agente pueda auto-eximirse agregando su propio feature acá.
+FEAT-042-geo-checkin
+FEAT-043-consent-renewal
+FEAT-044-data-export
+FEAT-050-feature-simple-para-que-los-empleados-re
+FEAT-051-calendario-interno-de-eventos

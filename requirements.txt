@@ -1,6 +1,8 @@
 pyyaml>=6.0
 networkx>=3.0
 requests>=2.31
+pytest>=8.0
+pytest-bdd>=7.0
 google-auth>=2.30          # retrieval/KB Vertex AI Search (gather_context, update_kb)
 google-cloud-storage>=2.16 # subida al bucket del KB (update_kb)
 # spec-kit se instala aparte con:  uvx --from git+https://github.com/github/spec-kit specify init

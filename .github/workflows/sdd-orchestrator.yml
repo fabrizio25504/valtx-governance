@@ -56,6 +56,7 @@ jobs:
             python ci/check_policy_citations.py "${d}spec.md" || rc=1
             python ci/check_traceability.py "${d}spec.md" src/ || rc=1
             python ci/coverage_graph.py "${d}spec.md" "$d" || rc=1
+            python ci/check_scenarios.py "${d}spec.md" "$d" || rc=1
           done
           exit $rc
 

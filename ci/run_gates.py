@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
 Orquestador local de gates SDD — reproduce lo que hará GitHub Actions.
-Corre los 4 gates sobre un feature y devuelve exit!=0 si alguno bloquea.
+Corre los 5 gates sobre un feature y devuelve exit!=0 si alguno bloquea.
 
 Gates:
   1. Vigencia normativa (policy_freshness)      — 0 tokens LLM
   2. Consistencia normativa (check_policy_citations) — policies citadas = aprobadas por el router
   3. Trazabilidad / alucinaciones (check_traceability)
   4. Cobertura EARS↔Gherkin (coverage_graph)
+  5. Ejecución real de escenarios Gherkin (check_scenarios, pytest-bdd)
 
 Uso:  python ci/run_gates.py FEAT-042-geo-checkin
 """
@@ -44,6 +45,8 @@ def main(feat):
         "GATE 3 · Trazabilidad — orphan-REQ (traceSDD)", ["ci/check_traceability.py", spec, "src/"])
     results["Cobertura EARS↔Gherkin"] = run(
         "GATE 4 · Cobertura EARS↔Gherkin 100%", ["ci/coverage_graph.py", spec, fdir])
+    results["Ejecución de escenarios (pytest-bdd)"] = run(
+        "GATE 5 · Ejecución real de escenarios Gherkin", ["ci/check_scenarios.py", spec, fdir])
 
     print("\n" + "█" * 70 + "\n RESUMEN DE GATES\n" + "█" * 70)
     blocked = 0
