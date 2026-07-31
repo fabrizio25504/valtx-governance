@@ -67,6 +67,14 @@ jobs:
           echo "BRANCH=feature/${FEATURE}-${GITHUB_RUN_ID}" >> "$GITHUB_ENV"
           git checkout -b "feature/${FEATURE}-${GITHUB_RUN_ID}"
 
+      # 2b) CONTEXTO CONSTITUCIONAL — bundler selectivo (principios + Policy Cards
+      # relevantes al feature, vía mapea_principio). Fuente única de verdad: si
+      # constitution.md cambia, esto lo refleja solo, sin copias a mano en el --message.
+      # Sin `|| true` a propósito: si el spec no declara tags, preferimos que el
+      # workflow se caiga a que el agente escriba código sin principios en silencio.
+      - name: Contexto constitucional (bundler)
+        run: python ci/context_bundler.py "specs/$FEATURE/spec.md" --out constitution_context.md
+
       # 3) AGENTE (aider, agnóstico) — implementa citando REQ, con el spec + gherkin + KB como contexto
       - name: Agente implementa (aider)
         env:
@@ -74,13 +82,13 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          READS="--read specs/$FEATURE/spec.md"
+          READS="--read specs/$FEATURE/spec.md --read constitution_context.md"
           [ -f context_kb.md ] && READS="$READS --read context_kb.md"
           for f in specs/$FEATURE/*.feature; do [ -f "$f" ] && READS="$READS --read $f"; done
           # Captura el output de aider (incluye su reporte de tokens/costo) para medirlo.
           aider --model "$AGENT_MODEL" --yes-always --no-auto-commit --no-check-update \
             --no-stream --no-analytics $READS \
-            --message "Implementa en src/ (nuevo archivo) los requisitos del feature $FEATURE segun specs/$FEATURE/spec.md y su .feature. REGLAS OBLIGATORIAS que la CI verifica y bloquea si no se cumplen: (1) cada linea de codigo no trivial cita su REQ en comentario '# REQ-XXX-###'; (2) NO inventes REQ que no existan en el spec; (3) respeta las Policy Cards citadas; (4) NO modifiques .specify/memory/ ni ci/ ni otros features." \
+            --message "Implementa en src/ (nuevo archivo) los requisitos del feature $FEATURE segun specs/$FEATURE/spec.md y su .feature. Cumple TODAS las reglas de constitution_context.md: la CI las verifica y bloquea el merge si no se cumplen. NO modifiques .specify/memory/, ci/, ni otros features." \
             2>&1 | tee aider_out.txt
 
       # 3b) OBSERVABILIDAD — mide tokens/costo REAL del run (dato para el modelo de costo).

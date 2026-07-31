@@ -9,3 +9,4 @@ metrics/
 .specify/templates/*.backup
 .opencode/
 .claude/skills_disabled/
+constitution_context.md
