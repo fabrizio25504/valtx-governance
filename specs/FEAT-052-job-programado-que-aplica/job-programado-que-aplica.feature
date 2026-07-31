@@ -1,5 +1,5 @@
 # language: es
-Feature: Job programado que aplica retención y purga de logs de acceso
+Característica: Job programado que aplica retención y purga de logs de acceso
   Como sistema
   Quiero aplicar una política de retención y purgar los logs de acceso vencidos
   Para cumplir con la normativa de minimización y retención de datos
