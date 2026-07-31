@@ -63,6 +63,18 @@ sys.path.insert(0, os.path.dirname(__file__))
 from check_traceability import DRAFT_STATES, spec_estado  # mismo criterio spec-first que Gate 3
 
 UNDEFINED_MARK = "StepDefinitionNotFoundError"
+# Marcas del traceback que delatan un COLLECTION_ERROR originado en el .feature
+# (Gherkin inválido) y no en steps/ (import roto, sintaxis Python). pytest-bdd
+# suele rematar este traceback con "Multiple features are not allowed in a
+# single feature file" — un mensaje engañoso (no hay dos Features en el
+# archivo; el parser simplemente no reconoció NINGUNA línea, típicamente por
+# la palabra clave equivocada bajo `# language: es`) que manda a buscar en el
+# lugar equivocado si no se distingue esta causa.
+FEATURE_PARSE_MARKERS = ("FeatureError", "CompositeParserException", "GherkinParser")
+
+
+def feature_files(feature_dir):
+    return sorted(f for f in os.listdir(feature_dir) if f.endswith(".feature"))
 
 
 def legacy_features():
@@ -158,7 +170,12 @@ def main(spec_path, feature_dir):
     for name, status, detail in scenarios:
         mark = {"PASSED": "✓", "FAILED": "✗", "UNDEFINED": "✗", "COLLECTION_ERROR": "✗"}[status]
         if status == "COLLECTION_ERROR":
-            print(f"  {mark} {name}  -> {status} (steps/ no se pudo importar/parsear):")
+            if any(m in detail for m in FEATURE_PARSE_MARKERS):
+                feats = feature_files(feature_dir)
+                target = feats[0] if feats else "el .feature"
+                print(f"  {mark} {name}  -> {status} ({target} no es Gherkin válido):")
+            else:
+                print(f"  {mark} {name}  -> {status} (steps/ no se pudo importar/parsear):")
             for ln in detail.splitlines():
                 print(f"      {ln}")
         else:
@@ -174,10 +191,22 @@ def main(spec_path, feature_dir):
         rc = 1
     elif collection_errors:
         rc = 1
-        print(f"  RESULTADO: BLOQUEADO — error de COLECCIÓN en steps/: los step definitions no se "
-              f"pudieron importar/parsear, así que NO SE EJECUTÓ NINGÚN ESCENARIO. Esto NO es el rojo "
-              f"sano del TDD (modo SPEC) — es un problema en steps/ (import roto, error de sintaxis) "
-              f"que hay que arreglar antes de que el gate pueda evaluar nada.")
+        feature_parse_errors = [s for s in collection_errors if any(m in s[2] for m in FEATURE_PARSE_MARKERS)]
+        if feature_parse_errors:
+            feats = feature_files(feature_dir)
+            target = feats[0] if feats else "el .feature"
+            print(f"  RESULTADO: BLOQUEADO — error de COLECCIÓN: {target} no es Gherkin válido (el parser "
+                  f"no pudo leer ninguna línea), así que NO SE EJECUTÓ NINGÚN ESCENARIO. Esto NO es el "
+                  f"rojo sano del TDD (modo SPEC) — es un problema en el .feature (p.ej. palabra clave "
+                  f"equivocada bajo '# language: es': con ese header la palabra clave es 'Característica:', "
+                  f"no 'Feature:'), no en steps/. Si el traceback termina en 'Multiple features are not "
+                  f"allowed in a single feature file', ignora esa línea: es un efecto colateral engañoso "
+                  f"del parser, no la causa real.")
+        else:
+            print(f"  RESULTADO: BLOQUEADO — error de COLECCIÓN en steps/: los step definitions no se "
+                  f"pudieron importar/parsear, así que NO SE EJECUTÓ NINGÚN ESCENARIO. Esto NO es el rojo "
+                  f"sano del TDD (modo SPEC) — es un problema en steps/ (import roto, error de sintaxis) "
+                  f"que hay que arreglar antes de que el gate pueda evaluar nada.")
     elif undefined:
         rc = 1
         print(f"  RESULTADO: BLOQUEADO — {len(undefined)} step(s) sin step definition.")

@@ -126,7 +126,10 @@ jobs:
             --message "Redacta el SPEC del feature $FEAT_ID a partir de este requerimiento del usuario: \"$PROMPT\".
             Escribe CUATRO archivos:
             A) $SPEC_DIR/spec.md con front-matter YAML: id: $FEAT_ID | titulo | tags: [$TAGS] | policies: [$POLICIES] | owner: producto@valtx.pe | estado: draft | module: $MODULE. Luego seccion Contexto, seccion 'Requisitos (EARS)' y una tabla 'Normas cumplidas'.
-            B) $SPEC_DIR/${SLUG}.feature en Gherkin español (primera linea '# language: es').
+            B) $SPEC_DIR/${SLUG}.feature en Gherkin español. Empieza EXACTAMENTE así (plantilla obligatoria, copia estas dos lineas literal):
+               # language: es
+               Característica: <titulo del feature>
+               Con '# language: es', la palabra clave de la primera linea de contenido es 'Característica:' — NUNCA 'Feature:' (esa es la palabra clave en ingles y con el header en español el parser no la reconoce, rompe la lectura de TODO el archivo). El resto de palabras clave tambien van en español: 'Escenario:', 'Dado', 'Cuando', 'Entonces', 'Y'.
             C) $STEPS_FILE — step definitions pytest-bdd que cubren TODAS las frases (Dado/Cuando/Entonces) del .feature del punto B. Reglas de este archivo:
                - Imports al TOPE del archivo (nunca dentro del cuerpo de un step): 'from pytest_bdd import scenarios, given, when, then' y 'from $MODULE_IMPORT import <las funciones que uses>' (MODULE_IMPORT = la ruta de $MODULE sin 'src/' ni '.py', con puntos, precedida por 'src.', ej. src/foo_bar.py -> src.foo_bar).
                - 'scenarios(\"../${SLUG}.feature\")' (ruta relativa desde steps/ hacia el .feature del directorio padre).
