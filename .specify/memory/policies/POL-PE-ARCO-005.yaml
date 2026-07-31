@@ -17,7 +17,7 @@ source_url: https://diariooficial.elperuano.pe/Normas/obtenerDocumento?idNorma=2
 nota: 'Art. 76 (portabilidad) del reglamento: POR CONFIRMAR (fuente IAPP).'
 patron_ears: WHEN el titular solicita acceso/rectificación/cancelación/oposición THE SYSTEM SHALL atender
   la solicitud en un máximo de 10 días.
-mapea_principio: PRIN-PRIV-001
+mapea_principio: [PRIN-PRIV-001, PRIN-SEC-001]
 fecha_revision: '2025-03-30'
 vigencia_hasta: '2027-03-30'
 owner: legal@valtx.pe

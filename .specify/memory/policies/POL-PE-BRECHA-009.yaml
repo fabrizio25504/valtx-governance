@@ -16,7 +16,7 @@ source_url: https://busquedas.elperuano.pe/dispositivo/SE/2349653-1
 nota: 'Art. 34 del reglamento y plazo 48h: confianza media-alta (IAPP/guías). CONFIRMAR número.'
 patron_ears: WHEN se detecta una brecha de seguridad de datos personales THE SYSTEM SHALL disparar el
   flujo de notificación a la ANPD dentro de 48h.
-mapea_principio: PRIN-SEC-002
+mapea_principio: [PRIN-SEC-002, PRIN-OBS-001]
 fecha_revision: '2025-03-30'
 vigencia_hasta: '2027-03-30'
 owner: legal@valtx.pe

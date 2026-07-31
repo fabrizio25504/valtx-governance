@@ -19,7 +19,7 @@ nota: Plazo fijo de retención (p.ej. 2 años marketing) citado por fuentes secu
   definir plazo por finalidad.
 patron_ears: THE SYSTEM SHALL capturar el mínimo de campos necesarios y aplicar un plazo de retención
   con purga automática por finalidad declarada.
-mapea_principio: PRIN-PRIV-001
+mapea_principio: [PRIN-PRIV-001, PRIN-SEC-001]
 fecha_revision: '2025-03-30'
 vigencia_hasta: '2027-03-30'
 owner: legal@valtx.pe

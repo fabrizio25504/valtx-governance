@@ -17,7 +17,7 @@ source_url: https://diariooficial.elperuano.pe/Normas/obtenerDocumento?idNorma=2
 nota: 'Arts. 47/49/50 del reglamento: confianza media (IAPP).'
 patron_ears: THE SYSTEM SHALL cifrar los datos personales en reposo y tránsito y registrar accesos en
   logs conservados al menos 2 años.
-mapea_principio: PRIN-SEC-002
+mapea_principio: [PRIN-SEC-002, PRIN-SEC-001, PRIN-OBS-001]
 fecha_revision: '2025-03-30'
 vigencia_hasta: '2027-03-30'
 owner: legal@valtx.pe
