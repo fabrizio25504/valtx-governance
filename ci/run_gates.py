@@ -9,6 +9,7 @@ Gates:
   3. Trazabilidad / alucinaciones (check_traceability)
   4. Cobertura EARS↔Gherkin (coverage_graph)
   5. Ejecución real de escenarios Gherkin (check_scenarios, pytest-bdd)
+  6. Unicidad global de REQ (check_req_uniqueness) — global, corre una vez, no por feature
 
 Uso:  python ci/run_gates.py FEAT-042-geo-checkin
 """
@@ -36,6 +37,8 @@ def main(feat):
     results = {}
     results["Vigencia normativa (Capa 0)"] = run(
         "GATE 1 · Vigencia normativa — 0 tokens LLM", ["ci/policy_freshness.py"])
+    results["Unicidad global de REQ"] = run(
+        "GATE 6 · Unicidad global de REQ — global, no por feature", ["ci/check_req_uniqueness.py"])
     results["Consistencia normativa (Capa 0)"] = run(
         "GATE 2 · Consistencia normativa — policies citadas = aprobadas por router",
         ["ci/check_policy_citations.py", spec])

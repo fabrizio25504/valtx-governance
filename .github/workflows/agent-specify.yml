@@ -110,6 +110,18 @@ jobs:
           echo "POLICIES=$(python ci/policy_router.py --prompt "$PROMPT" --format json | python -c 'import sys,json;print(",".join(json.load(sys.stdin)["policies"]))')" >> "$GITHUB_ENV"
           echo "----- Capa 0 -----"; cat capa0_context.md
 
+      # 2b) Prefijos de REQ ya usados por otros features — cálculo determinista (grep,
+      # 0 tokens LLM), mismo patrón que el router de la Capa 0: se lo inyectamos al
+      # agente en el --message en vez de confiar en que "elija bien" sin esa lista.
+      # Sin esto, un prefijo repetido (p.ej. REQ-EXP-### ya usado por otro feature)
+      # pasa desapercibido hasta que ci/check_req_uniqueness.py (Gate 6) lo bloquea.
+      - name: Prefijos de REQ ya usados (evitar colisión)
+        if: env.SPEC_DIR != ''
+        run: |
+          USED_PREFIXES=$(grep -rohE 'REQ-[A-Z]+-' specs/*/spec.md 2>/dev/null | sort -u | tr '\n' ' ')
+          echo "USED_PREFIXES=$USED_PREFIXES" >> "$GITHUB_ENV"
+          echo "Prefijos REQ ya usados: ${USED_PREFIXES:-(ninguno)}"
+
       # 3) AGENTE redacta spec.md + .feature (agnóstico, aider). Cita solo las policies del router.
       - name: Agente redacta el spec
         if: env.SPEC_DIR != ''
@@ -137,7 +149,7 @@ jobs:
                - Cada @then contiene una aserción REAL (assert) sobre el resultado que devuelven las funciones de $MODULE — NUNCA 'pass' ni un assert trivial (assert True). Si el escenario no tiene nada que verificar todavía, es un error tuyo: el escenario en verde sin implementación es exactamente lo que el Gate 5 bloquea.
             D) $MODULE — STUB del módulo que implementará el feature: define las firmas de TODAS las funciones que $STEPS_FILE importa, con nombres y parámetros que tengan sentido para los REQ del spec, y haz que CADA UNA devuelva un valor vacío/neutro (None, {}, [], '', 0, False) — nunca 'raise NotImplementedError'. El objetivo es que la ejecución llegue hasta el assert del step @then y falle ahí (rojo de TDD legítimo), no que explote antes por una excepción. Este archivo NO debe citar ningun REQ-XXX-### en comentarios (ni citar ninguna Policy Card): es un stub vacío, todavía no es la implementación citada que exige el gate de trazabilidad.
             REGLAS OBLIGATORIAS que la CI verifica y bloquea:
-            (1) Cada requisito es EARS ('WHEN/WHERE/IF ... THE SYSTEM SHALL ...') con id REQ-<AREA>-### (AREA = 3-4 letras mayusculas coherentes, p.ej. REQ-EXP-001).
+            (1) Cada requisito es EARS ('WHEN/WHERE/IF ... THE SYSTEM SHALL ...') con id REQ-<AREA>-### (AREA = 3-4 letras mayusculas coherentes, p.ej. REQ-EXP-001). Prefijos REQ-<AREA> YA usados por otros features (elegi un AREA que NO este en esta lista, es el namespace del feature): $USED_PREFIXES
             (2) La lista de policies aprobadas por el router es: [$POLICIES]. Si NO esta vacia, cada REQ cita en su texto UNA policy de esa lista con su articulo (usa el bloque 'CAPA 0'). Si esta VACIA, el feature NO toca normativa: NO cites NINGUNA policy, NO menciones POL-xx, NO inventes leyes ni articulos, y deja 'policies: []' y la seccion 'Normas cumplidas' con 'Ninguna norma aplicable (sin datos personales)'. La CI BLOQUEA cualquier POL-xx que no este en [$POLICIES].
             (3) El .feature tiene EXACTAMENTE un Escenario por cada REQ, etiquetado con '@REQ-<AREA>-###' identico al del spec (el gate de cobertura exige 100%).
             (4) $STEPS_FILE debe recolectar y FALLAR (no pasar, no quedar undefined) todos los escenarios contra el STUB de $MODULE: es el rojo esperado antes de implementar.

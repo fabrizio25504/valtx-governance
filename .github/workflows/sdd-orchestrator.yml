@@ -45,6 +45,14 @@ jobs:
         id: freshness
         run: python ci/policy_freshness.py
 
+      # --- GATE 6: Unicidad global de REQ — global (recorre specs/ entero), fuera
+      # del loop por feature de más abajo. Corre una vez por PR, no una vez por
+      # feature: el invariante que protege (IDs/prefijos de REQ únicos) es del
+      # repo completo, no de un feature aislado — igual que el Gate 1. ---
+      - name: Gate unicidad global de REQ
+        id: req_uniqueness
+        run: python ci/check_req_uniqueness.py
+
       # --- GATE 2+3: Trazabilidad + Cobertura sobre TODOS los features ---
       - name: Gates por feature (trazabilidad + cobertura)
         id: gates
@@ -71,6 +79,8 @@ jobs:
           PR="${{ github.event.pull_request.html_url }}"
           if [ "${{ steps.freshness.outcome }}" = "failure" ]; then
             python ci/update_notion.py --feature "$FEATURE" --status bloqueado --gate "vigencia normativa" --pr-url "$PR"
+          elif [ "${{ steps.req_uniqueness.outcome }}" = "failure" ]; then
+            python ci/update_notion.py --feature "$FEATURE" --status bloqueado --gate "unicidad global de REQ" --pr-url "$PR"
           elif [ "${{ steps.gates.outcome }}" = "failure" ]; then
             python ci/update_notion.py --feature "$FEATURE" --status bloqueado --gate "trazabilidad/cobertura" --pr-url "$PR"
           else
@@ -89,6 +99,8 @@ jobs:
           PR="${{ github.event.pull_request.html_url }}"
           if [ "${{ steps.freshness.outcome }}" = "failure" ]; then
             gh issue comment "$NUM" --body "❌ **SDD**: bloqueado por gate **vigencia normativa**. [PR]($PR)"
+          elif [ "${{ steps.req_uniqueness.outcome }}" = "failure" ]; then
+            gh issue comment "$NUM" --body "❌ **SDD**: bloqueado por gate **unicidad global de REQ**. [PR]($PR)"
           elif [ "${{ steps.gates.outcome }}" = "failure" ]; then
             gh issue comment "$NUM" --body "❌ **SDD**: bloqueado por gate **trazabilidad/cobertura**. [PR]($PR)"
           else
