@@ -32,6 +32,7 @@ PRICES = [
     ("sonnet",              (3.00, 15.00)),
     ("opus",               (15.00, 75.00)),
     ("gpt",                 (0.50,  1.50)),  # fallback OpenAI genérico
+    ("glm",                 (0.0,   0.0)),   # NVIDIA NIM tier gratis: $0 real, no "modelo faltante"
 ]
 LOG = os.path.join(os.path.dirname(__file__), "..", "metrics", "token_usage.jsonl")
 
@@ -82,25 +83,45 @@ def emit_step_summary(rec):
 
 def report():
     """Consolida metrics/token_usage.jsonl: por feature, por stage, total y promedio.
-    Es el puente hacia cost/cost_model.py — costo REAL por feature vs. el techo estimado."""
+    Tokens (in/out) son la métrica principal — comparable entre modelos, incluso
+    tier gratis ($0 real). USD es secundario y se muestra igual, pero no reemplaza
+    a los tokens: con un modelo sin costo, el total en USD es siempre cero.
+    Es el puente hacia cost/cost_model.py — consumo REAL por feature vs. el techo estimado."""
     if not os.path.exists(LOG):
         print("Sin datos aún en metrics/token_usage.jsonl."); return
     rows = [json.loads(l) for l in open(LOG, encoding="utf-8") if l.strip()]
-    feats, stages, tot = {}, {}, 0.0
+
+    def _bucket():
+        return {"in": 0, "out": 0, "usd": 0.0}
+
+    feats, stages = {}, {}
+    tot_in = tot_out = 0
+    tot_usd = 0.0
     for r in rows:
-        feats[r["feature"]] = feats.get(r["feature"], 0.0) + r["usd"]
-        stages[r["stage"]] = stages.get(r["stage"], 0.0) + r["usd"]
-        tot += r["usd"]
+        f = feats.setdefault(r["feature"], _bucket())
+        s = stages.setdefault(r["stage"], _bucket())
+        f["in"] += r["in"]; f["out"] += r["out"]; f["usd"] += r["usd"]
+        s["in"] += r["in"]; s["out"] += r["out"]; s["usd"] += r["usd"]
+        tot_in += r["in"]; tot_out += r["out"]; tot_usd += r["usd"]
+
     nfeat = len(feats)
+    tot_tok = tot_in + tot_out
     print(f"=== token_meter · consumo REAL ({len(rows)} runs, {nfeat} features) ===\n")
+
     print("Por stage:")
-    for s, v in sorted(stages.items(), key=lambda x: -x[1]):
-        print(f"  {s:<12} ${v:.4f}  ({100*v/tot:.0f}%)" if tot else f"  {s}")
+    for name, b in sorted(stages.items(), key=lambda x: -(x[1]["in"] + x[1]["out"])):
+        tok = b["in"] + b["out"]
+        pct = f"{100*tok/tot_tok:.0f}%" if tot_tok else "0%"
+        print(f"  {name:<12} in {b['in']:>8,}  out {b['out']:>8,}  tok {tok:>9,} ({pct})  ${b['usd']:.4f}")
+
     print("\nPor feature:")
-    for fq, v in sorted(feats.items(), key=lambda x: -x[1]):
-        print(f"  {fq:<28} ${v:.4f}")
-    print(f"\nTOTAL: ${tot:.4f}   |   promedio por feature: ${tot/max(1,nfeat):.4f}")
-    print("→ compara este costo/feature real con el techo de cost/cost_model.py para calibrar.")
+    for fq, b in sorted(feats.items(), key=lambda x: -(x[1]["in"] + x[1]["out"])):
+        tok = b["in"] + b["out"]
+        print(f"  {fq:<28} in {b['in']:>8,}  out {b['out']:>8,}  tok {tok:>9,}  ${b['usd']:.4f}")
+
+    print(f"\nTOTAL: in {tot_in:,} / out {tot_out:,} / tok {tot_tok:,}   |   USD ${tot_usd:.4f}")
+    print(f"Promedio por feature: {tot_tok/max(1,nfeat):,.0f} tokens   |   ${tot_usd/max(1,nfeat):.4f}")
+    print("→ compara este consumo/feature real con el techo de cost/cost_model.py para calibrar.")
 
 
 def main():
