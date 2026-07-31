@@ -2,6 +2,7 @@
 id: [FEAT-###]
 tags: []        # datos/acciones que toca (p.ej. ubicacion, gps, pii) → activa la Capa 0
 policies: []    # Policy Cards aplicables detectadas (p.ej. POL-PE-CONSENT-001)
+module: [src/nombre_del_modulo.py]  # módulo que agent-implement completará (contrato specify -> implement)
 ---
 
 <!-- CONVENCIÓN VALTX (obligatoria para pasar los gates de CI):
@@ -13,6 +14,10 @@ policies: []    # Policy Cards aplicables detectadas (p.ej. POL-PE-CONSENT-001)
      bloquea REQ inexistentes (alucinaciones).
   4. Los .feature deben etiquetar cada escenario con @REQ-XXX-### — ci/coverage_graph.py
      exige 100% de cobertura EARS↔Gherkin.
+  5. `module:` declara la ruta del módulo (src/nombre.py) que implementará el feature.
+     agent-specify genera un STUB en esa ruta (firmas vacías, sin REQ citados) y los
+     step definitions en steps/ importan de ahí — agent-implement completa ESE archivo,
+     no crea uno nuevo. Es el contrato que conecta specify -> implement.
 -->
 
 # Feature Specification: [FEATURE NAME]

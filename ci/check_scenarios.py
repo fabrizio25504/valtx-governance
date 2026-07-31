@@ -77,14 +77,22 @@ def legacy_features():
 
 
 def run_pytest(steps_dir):
-    """Corre pytest sobre steps_dir con reporte JUnit. Devuelve (returncode, stdout, junit_path|None)."""
+    """Corre pytest sobre steps_dir con reporte JUnit. Devuelve (returncode, stdout, junit_path|None).
+
+    `python -m pytest` antepone el cwd del proceso a sys.path — de eso depende que
+    `from src.modulo import f` resuelva dentro de steps/. Antes esto era un supuesto
+    implícito (que quien invoque este script esté parado en la raíz del repo); acá
+    se fija `cwd=ROOT` explícitamente para que la resolución del import no dependa
+    de dónde esté parado el llamador (run_gates.py, sdd-orchestrator.yml, o a mano)."""
     if not os.path.isdir(steps_dir):
         return None, "", None
+    steps_dir_abs = os.path.abspath(steps_dir)
     fd, junit_path = tempfile.mkstemp(suffix=".xml")
     os.close(fd)
     r = subprocess.run(
-        [sys.executable, "-m", "pytest", steps_dir, "--junitxml", junit_path, "-q"],
+        [sys.executable, "-m", "pytest", steps_dir_abs, "--junitxml", junit_path, "-q"],
         capture_output=True, text=True,
+        cwd=ROOT,
     )
     return r.returncode, r.stdout + r.stderr, junit_path
 

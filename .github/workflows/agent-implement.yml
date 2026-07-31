@@ -88,7 +88,7 @@ jobs:
           # Captura el output de aider (incluye su reporte de tokens/costo) para medirlo.
           aider --model "$AGENT_MODEL" --yes-always --no-auto-commit --no-check-update \
             --no-stream --no-analytics $READS \
-            --message "Implementa en src/ (nuevo archivo) los requisitos del feature $FEATURE segun specs/$FEATURE/spec.md y su .feature. Cumple TODAS las reglas de constitution_context.md: la CI las verifica y bloquea el merge si no se cumplen. NO modifiques .specify/memory/, ci/, ni otros features." \
+            --message "Completa la implementacion en el modulo declarado en el campo 'module:' del front-matter de specs/$FEATURE/spec.md (ya existe como STUB generado por agent-specify: firmas vacías que los step definitions de specs/$FEATURE/steps/ ya importan). Respeta esas firmas (nombres y parametros) — no las renombres ni cambies su ubicacion — y completa su cuerpo para cumplir los requisitos del feature segun spec.md y su .feature. Cumple TODAS las reglas de constitution_context.md: la CI las verifica y bloquea el merge si no se cumplen. NO modifiques .specify/memory/, ci/, ni otros features." \
             2>&1 | tee aider_out.txt
 
       # 3b) OBSERVABILIDAD — mide tokens/costo REAL del run (dato para el modelo de costo).
