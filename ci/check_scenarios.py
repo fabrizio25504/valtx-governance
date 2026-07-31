@@ -11,24 +11,36 @@ los 4 gates en verde:
         pass
 
 Gate 5 corre pytest-bdd sobre <feature_dir>/steps/ y clasifica cada escenario en
-PASSED / FAILED / UNDEFINED (step sin step definition), vía el reporte JUnit XML
-(builtin de pytest, sin dependencia extra) — un step no definido no es un
-AssertionError normal: pytest-bdd lo reporta como
-`pytest_bdd.exceptions.StepDefinitionNotFoundError`, y hay que distinguirlo de
-un assert real para dar un veredicto correcto en modo SPEC (ver más abajo).
+PASSED / FAILED / UNDEFINED / COLLECTION_ERROR, vía el reporte JUnit XML
+(builtin de pytest, sin dependencia extra):
+
+  - UNDEFINED: step sin step definition — no es un AssertionError normal;
+    pytest-bdd lo reporta como `pytest_bdd.exceptions.StepDefinitionNotFoundError`.
+  - COLLECTION_ERROR: steps/ no se pudo IMPORTAR o PARSEAR (import roto —
+    p.ej. `from src.modulo import f` cuando src/ todavía no existe en un PR de
+    spec —, o error de sintaxis). pytest lo marca con `<error message="collection
+    failure">` y `classname=""`, distinto de un `<failure>` de escenario. NO se
+    ejecutó ni un solo escenario, así que NUNCA es el rojo sano del TDD en modo
+    SPEC: sin esta distinción, un import roto (el caso normal antes de que
+    exista implementación) clasificaba como "0 escenarios FALLARON" y el gate
+    pasaba en verde sin haber corrido nada.
+
+Ambos casos hay que distinguirlos de un assert real para dar un veredicto
+correcto en modo SPEC (ver más abajo).
 
 Dos modos, según `estado:` del front-matter del spec (mismo DRAFT_STATES que
 check_traceability.py):
 
   SPEC (draft/borrador/...): el código todavía no existe -> los escenarios
-    TIENEN que fallar. BLOQUEA si hay UNDEFINED, si se recolectaron 0
-    escenarios, o si ALGÚN escenario PASA (sin implementación, un escenario en
-    verde es un test que no verifica nada — el clásico `assert True`. Es el
-    único momento del ciclo en que se puede comprobar que un test ES CAPAZ de
-    fallar; no "corregir" esta regla sin entender por qué existe).
+    TIENEN que fallar. BLOQUEA si hay COLLECTION_ERROR, UNDEFINED, si se
+    recolectaron 0 escenarios, o si ALGÚN escenario PASA (sin implementación,
+    un escenario en verde es un test que no verifica nada — el clásico
+    `assert True`. Es el único momento del ciclo en que se puede comprobar que
+    un test ES CAPAZ de fallar; no "corregir" esta regla sin entender por qué
+    existe).
 
   CODE (cualquier otro estado): BLOQUEA si falla algún escenario, si hay
-    UNDEFINED, o si se recolectaron 0 escenarios.
+    COLLECTION_ERROR, UNDEFINED, o si se recolectaron 0 escenarios.
 
 Features listados en .specify/memory/legacy_features.txt están exentos de este
 gate (advierte y sale 0) — siguen pasando por los gates 1-4. Ese archivo vive
@@ -79,7 +91,7 @@ def run_pytest(steps_dir):
 
 def classify(junit_path):
     """Lee el JUnit XML y devuelve lista de (nombre, estado, detalle) por escenario.
-    estado en {PASSED, FAILED, UNDEFINED}."""
+    estado en {PASSED, FAILED, UNDEFINED, COLLECTION_ERROR}."""
     if not junit_path or not os.path.isfile(junit_path):
         return []
     root = ET.parse(junit_path).getroot()
@@ -87,11 +99,19 @@ def classify(junit_path):
     for tc in root.iter("testcase"):
         name = f"{tc.get('classname','')}::{tc.get('name','')}"
         node = tc.find("failure")
-        if node is None:
-            node = tc.find("error")
-        if node is None:
+        err_node = tc.find("error")
+        if node is None and err_node is None:
             out.append((name, "PASSED", ""))
             continue
+        # pytest marca los fallos de COLECCIÓN (import roto, error de sintaxis en
+        # steps/) con <error message="collection failure"> y classname="" — nunca
+        # se ejecutó ni un solo escenario, así que NO es el rojo sano del TDD; hay
+        # que distinguirlo de un <failure> real (assert) o de un UNDEFINED (step
+        # sin step definition), que sí implican que pytest-bdd corrió el escenario.
+        if err_node is not None and (err_node.get("message") == "collection failure" or tc.get("classname") == ""):
+            out.append((name, "COLLECTION_ERROR", (err_node.text or "").strip()))
+            continue
+        node = node if node is not None else err_node
         msg = node.get("message", "") or (node.text or "")
         if UNDEFINED_MARK in msg:
             out.append((name, "UNDEFINED", msg.splitlines()[0] if msg else "step sin definir"))
@@ -128,9 +148,15 @@ def main(spec_path, feature_dir):
         print(output.strip()[-1500:])
 
     for name, status, detail in scenarios:
-        mark = {"PASSED": "✓", "FAILED": "✗", "UNDEFINED": "✗"}[status]
-        print(f"  {mark} {name}  -> {status}" + (f": {detail}" if detail else ""))
+        mark = {"PASSED": "✓", "FAILED": "✗", "UNDEFINED": "✗", "COLLECTION_ERROR": "✗"}[status]
+        if status == "COLLECTION_ERROR":
+            print(f"  {mark} {name}  -> {status} (steps/ no se pudo importar/parsear):")
+            for ln in detail.splitlines():
+                print(f"      {ln}")
+        else:
+            print(f"  {mark} {name}  -> {status}" + (f": {detail}" if detail else ""))
 
+    collection_errors = [s for s in scenarios if s[1] == "COLLECTION_ERROR"]
     undefined = [s for s in scenarios if s[1] == "UNDEFINED"]
     failed = [s for s in scenarios if s[1] == "FAILED"]
     passed = [s for s in scenarios if s[1] == "PASSED"]
@@ -138,6 +164,12 @@ def main(spec_path, feature_dir):
     rc = 0
     if not scenarios:
         rc = 1
+    elif collection_errors:
+        rc = 1
+        print(f"  RESULTADO: BLOQUEADO — error de COLECCIÓN en steps/: los step definitions no se "
+              f"pudieron importar/parsear, así que NO SE EJECUTÓ NINGÚN ESCENARIO. Esto NO es el rojo "
+              f"sano del TDD (modo SPEC) — es un problema en steps/ (import roto, error de sintaxis) "
+              f"que hay que arreglar antes de que el gate pueda evaluar nada.")
     elif undefined:
         rc = 1
         print(f"  RESULTADO: BLOQUEADO — {len(undefined)} step(s) sin step definition.")
