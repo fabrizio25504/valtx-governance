@@ -25,11 +25,11 @@ El sistema mantiene un registro de los accesos de los usuarios al directorio int
 ## Requisitos (EARS)
 
 - **REQ-RET-001**: WHEN el job programado se ejecuta diariamente THE SYSTEM SHALL aplicar la política de retención definida sobre los logs de acceso al directorio interno y purgar los registros vencidos automáticamente, cumpliendo POL-PE-MINIM-004 (Arts. 6, 7, 20).
-- **REQ-EXP-001**: WHEN el titular solicita exportar su historial de accesos desde su perfil antes de la purga THE SYSTEM SHALL generar y entregar los datos en un formato estructurado, cumpliendo POL-PE-ARCO-005 (Arts. 19, 76).
+- **REQ-PORT-001**: WHEN el titular solicita exportar su historial de accesos desde su perfil antes de la purga THE SYSTEM SHALL generar y entregar los datos en un formato estructurado, cumpliendo POL-PE-ARCO-005 (Arts. 19, 76).
 
 ## Normas cumplidas
 
 | Requisito | Policy Card | Artículo | Descripción |
 |-----------|-------------|----------|-------------|
 | REQ-RET-001 | POL-PE-MINIM-004 | Arts. 6, 7, 20 | Minimización, proporcionalidad y supresión automática al expirar retención |
-| REQ-EXP-001 | POL-PE-ARCO-005 | Arts. 19, 76 | Derecho de acceso y portabilidad en formato estructurado |
+| REQ-PORT-001 | POL-PE-ARCO-005 | Arts. 19, 76 | Derecho de acceso y portabilidad en formato estructurado |

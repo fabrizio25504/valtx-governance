@@ -10,7 +10,7 @@ Característica: Job programado que aplica retención y purga de logs de acceso
     Cuando el job programado se ejecuta
     Entonces el sistema purga los registros de logs vencidos
 
-  @REQ-EXP-001
+  @REQ-PORT-001
   Escenario: Exportación del historial de accesos por el titular
     Dado que el titular solicita exportar su historial de accesos desde su perfil
     Cuando el sistema procesa la solicitud de exportación
