@@ -16,12 +16,19 @@ _consent_db = {
 # Mock storage for encrypted logs
 _encrypted_storage = []
 
+# Fallback solo para entornos sin CONSENT_ENCRYPTION_KEY (p.ej. tests): generada
+# UNA vez por proceso. Antes se llamaba Fernet.generate_key() en cada invocación
+# de _get_cipher(), así que cifrar y descifrar en el mismo proceso usaban claves
+# distintas y la excepción disparaba siempre — save_encrypted_consent_record
+# devolvía False incondicionalmente.
+_FALLBACK_KEY = Fernet.generate_key()
+
 def _get_cipher():
     # PRIN-SEC-002: Secrets must be read from environment variables, never hardcoded
     key = os.environ.get('CONSENT_ENCRYPTION_KEY')
     if not key:
         # Fallback for testing environments where key is not set
-        key = Fernet.generate_key()
+        key = _FALLBACK_KEY
     return Fernet(key)
 
 def get_consent_summary(account):
