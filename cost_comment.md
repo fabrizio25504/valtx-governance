@@ -1,1 +1,1 @@
-💸 **Costo del agente** · `FEAT-052`/specify · modelo `openai/z-ai/glm-5.2` · in 4,700 / out 1,500 tok · **$0.0000** (estimado)
+💸 **Costo del agente** · `FEAT-052-job-programado-que-aplica`/implement · modelo `openai/z-ai/glm-5.2` · in 3,200 / out 50 tok · **$0.0000** (estimado)
