@@ -9,9 +9,12 @@ tipos:
     account: str
     new_status: str
     encrypted_log_id: str
-  StorageRecord:
+  ConsentLogEntry:
+    # Dato EN CLARO. El llamador nunca entrega el registro ya cifrado —
+    # REQ-PAN-003 dice "THE SYSTEM SHALL cifrar", así que cifrar es
+    # responsabilidad de save_encrypted_consent_record, no de quien lo llama.
     record_id: str
-    encrypted_data: str
+    payload: str
   MinimizationCheck:
     account: str
     marketing_status: str
@@ -25,12 +28,17 @@ funciones:
     params:
       account: str
     returns: RevocationResult
-    descripcion: devuelve el resultado de actualizar el estado a revocado y el identificador del log cifrado que deja constancia de la acción
+    descripcion: devuelve el resultado de actualizar el estado a revocado y el identificador del log cifrado que deja constancia de la acción; internamente arma un ConsentLogEntry EN CLARO y se lo pasa a save_encrypted_consent_record para que ESA función lo cifre
   save_encrypted_consent_record:
     params:
-      record: StorageRecord
+      entry: ConsentLogEntry
     returns: bool
-    descripcion: devuelve verdadero si el registro se persistió correctamente aplicando cifrado en reposo, falso si falló
+    descripcion: >
+      CIFRA entry.payload (texto plano) con la clave activa y persiste el
+      resultado cifrado en el almacenamiento en reposo; devuelve verdadero si
+      el cifrado y la persistencia se completaron, falso si falló. Cifrar es
+      responsabilidad de ESTA función (REQ-PAN-003 asigna la acción al
+      sistema) — nunca recibe el dato ya cifrado, solo texto plano.
   verify_minimization_fields:
     params:
       account: str
