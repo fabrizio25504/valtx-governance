@@ -1,1 +1,2 @@
 {"feature": "FEAT-052", "stage": "specify", "model": "openai/z-ai/glm-5.2", "in": 4700, "out": 1500, "usd": 0.0, "cost_source": "estimado"}
+{"feature": "FEAT-053", "stage": "specify", "model": "openai/z-ai/glm-5.2", "in": 6000, "out": 2300, "usd": 0.0, "cost_source": "estimado"}
