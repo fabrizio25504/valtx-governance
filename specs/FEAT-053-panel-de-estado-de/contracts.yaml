@@ -1,0 +1,39 @@
+module: src/panel_de_estado_de.py
+tipos:
+  ConsentSummary:
+    account: str
+    status: str
+    grant_date: str
+    accepted_channels: list[str]
+  RevocationResult:
+    account: str
+    new_status: str
+    encrypted_log_id: str
+  StorageRecord:
+    record_id: str
+    encrypted_data: str
+  MinimizationCheck:
+    account: str
+    marketing_status: str
+funciones:
+  get_consent_summary:
+    params:
+      account: str
+    returns: ConsentSummary
+    descripcion: devuelve el resumen del estado actual del consentimiento, fecha de otorgamiento y canales aceptados para la cuenta especificada
+  revoke_marketing_consent:
+    params:
+      account: str
+    returns: RevocationResult
+    descripcion: devuelve el resultado de actualizar el estado a revocado y el identificador del log cifrado que deja constancia de la acción
+  save_encrypted_consent_record:
+    params:
+      record: StorageRecord
+    returns: bool
+    descripcion: devuelve verdadero si el registro se persistió correctamente aplicando cifrado en reposo, falso si falló
+  verify_minimization_fields:
+    params:
+      account: str
+      marketing_status: str
+    returns: MinimizationCheck
+    descripcion: devuelve la verificación de que unicamente se capturaron los campos mínimos necesarios (cuenta y estado de marketing)
