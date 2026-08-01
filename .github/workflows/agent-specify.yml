@@ -81,6 +81,7 @@ jobs:
           echo "SLUG=$SLUG" >> "$GITHUB_ENV"
           echo "MODULE=src/${MODNAME}.py" >> "$GITHUB_ENV"
           echo "STEPS_FILE=specs/${ID}-${SLUG}/steps/test_${MODNAME}_steps.py" >> "$GITHUB_ENV"
+          echo "CONTRACTS_FILE=specs/${ID}-${SLUG}/contracts.yaml" >> "$GITHUB_ENV"
           echo "Generaré: specs/${ID}-${SLUG}/ (module: src/${MODNAME}.py)"
 
       # 1b) Sella el Feature ID en la fila de Notion que originó este run, para que
@@ -134,26 +135,36 @@ jobs:
             --no-stream --no-analytics \
             --read .specify/templates/spec-template.md --read capa0_context.md \
             --file "$SPEC_DIR/spec.md" --file "$SPEC_DIR/${SLUG}.feature" \
-            --file "$STEPS_FILE" --file "$MODULE" \
+            --file "$CONTRACTS_FILE" --file "$STEPS_FILE" --file "$MODULE" \
             --message "Redacta el SPEC del feature $FEAT_ID a partir de este requerimiento del usuario: \"$PROMPT\".
-            Escribe CUATRO archivos:
+            Escribe CINCO archivos, EN ESTE ORDEN (cada uno depende del anterior — no los redactes en paralelo inventando nombres por separado):
             A) $SPEC_DIR/spec.md con front-matter YAML: id: $FEAT_ID | titulo | tags: [$TAGS] | policies: [$POLICIES] | owner: producto@valtx.pe | estado: draft | module: $MODULE. Luego seccion Contexto, seccion 'Requisitos (EARS)' y una tabla 'Normas cumplidas'.
             B) $SPEC_DIR/${SLUG}.feature en Gherkin español. Empieza EXACTAMENTE así (plantilla obligatoria, copia estas dos lineas literal):
                # language: es
                Característica: <titulo del feature>
                Con '# language: es', la palabra clave de la primera linea de contenido es 'Característica:' — NUNCA 'Feature:' (esa es la palabra clave en ingles y con el header en español el parser no la reconoce, rompe la lectura de TODO el archivo). El resto de palabras clave tambien van en español: 'Escenario:', 'Dado', 'Cuando', 'Entonces', 'Y'.
-            C) $STEPS_FILE — step definitions pytest-bdd que cubren TODAS las frases (Dado/Cuando/Entonces) del .feature del punto B. Reglas de este archivo:
+            C) $CONTRACTS_FILE — el CONTRATO DE DATOS del feature (formato YAML). El spec (A) esta en EARS/castellano y NO tiene nombres de campo: sin este archivo, los steps (D) y el modulo (E) inventan cada uno su propio esquema por separado y terminan en desacuerdo (esto YA paso: un feature con steps asumiendo {id, user, date, expired} y el modulo implementando {user_id, timestamp, action, ip_address, is_expired} — los escenarios fallaron en Gate 5 modo CODE). Estructura obligatoria:
+               module: $MODULE
+               tipos:
+                 <NombreDeEntidad>: {<campo>: <tipo python: str/int/bool/float>, ...}   # una entrada por cada estructura de datos que el feature use
+               funciones:
+                 <nombre_funcion>:
+                   params: {<param>: <tipo, ej. 'list[NombreDeEntidad]' o 'str'>, ...}
+                   returns: <tipo>
+                   descripcion: <UNA linea en lenguaje de negocio de que devuelve concretamente la funcion — no repitas el tipo, decis el SIGNIFICADO. Ej.: 'devuelve los registros que se CONSERVAN tras la purga, no los purgados'>
+               La descripcion: es OBLIGATORIA para cada funcion y no es decorativa: nombres de funcion ambiguos (ej. run_retention_job) no dicen por si solos si el retorno son los registros purgados o los conservados, y esa ambiguedad semantica — no solo la de tipos — es la causa real del desacuerdo entre steps y modulo.
+            D) $STEPS_FILE — step definitions pytest-bdd que cubren TODAS las frases (Dado/Cuando/Entonces) del .feature del punto B. Los nombres de campo y las firmas que uses ACA salen EXCLUSIVAMENTE de $CONTRACTS_FILE (punto C) — no los inventes de nuevo aunque te parezcan razonables; si un dato no esta en el contrato, agregalo primero al contrato. Reglas de este archivo:
                - Imports al TOPE del archivo (nunca dentro del cuerpo de un step): 'from pytest_bdd import scenarios, given, when, then' y 'from $MODULE_IMPORT import <las funciones que uses>' (MODULE_IMPORT = la ruta de $MODULE sin 'src/' ni '.py', con puntos, precedida por 'src.', ej. src/foo_bar.py -> src.foo_bar).
                - 'scenarios(\"../${SLUG}.feature\")' (ruta relativa desde steps/ hacia el .feature del directorio padre).
-               - Cada @given/@when construye o mantiene un estado de prueba (fixture simple, dict o variable de módulo) que los @then puedan inspeccionar.
-               - Cada @then contiene una aserción REAL (assert) sobre el resultado que devuelven las funciones de $MODULE — NUNCA 'pass' ni un assert trivial (assert True). Si el escenario no tiene nada que verificar todavía, es un error tuyo: el escenario en verde sin implementación es exactamente lo que el Gate 5 bloquea.
-            D) $MODULE — STUB del módulo que implementará el feature: define las firmas de TODAS las funciones que $STEPS_FILE importa, con nombres y parámetros que tengan sentido para los REQ del spec, y haz que CADA UNA devuelva un valor vacío/neutro (None, {}, [], '', 0, False) — nunca 'raise NotImplementedError'. El objetivo es que la ejecución llegue hasta el assert del step @then y falle ahí (rojo de TDD legítimo), no que explote antes por una excepción. Este archivo NO debe citar ningun REQ-XXX-### en comentarios (ni citar ninguna Policy Card): es un stub vacío, todavía no es la implementación citada que exige el gate de trazabilidad.
+               - Cada @given/@when construye o mantiene un estado de prueba (fixture simple, dict o variable de módulo) que los @then puedan inspeccionar, usando los nombres de campo de $CONTRACTS_FILE.
+               - Cada @then contiene una aserción REAL (assert) sobre el resultado que devuelven las funciones de $MODULE, consistente con la 'descripcion:' de cada funcion en el contrato — NUNCA 'pass' ni un assert trivial (assert True). Si el escenario no tiene nada que verificar todavía, es un error tuyo: el escenario en verde sin implementación es exactamente lo que el Gate 5 bloquea.
+            E) $MODULE — STUB del módulo que implementará el feature: define EXACTAMENTE las funciones descritas en 'funciones:' de $CONTRACTS_FILE (mismos nombres, mismos params — no otros), y haz que CADA UNA devuelva un valor vacío/neutro (None, {}, [], '', 0, False) — nunca 'raise NotImplementedError'. El objetivo es que la ejecución llegue hasta el assert del step @then y falle ahí (rojo de TDD legítimo), no que explote antes por una excepción. Este archivo NO debe citar ningun REQ-XXX-### en comentarios (ni citar ninguna Policy Card): es un stub vacío, todavía no es la implementación citada que exige el gate de trazabilidad.
             REGLAS OBLIGATORIAS que la CI verifica y bloquea:
             (1) Cada requisito es EARS ('WHEN/WHERE/IF ... THE SYSTEM SHALL ...') con id REQ-<AREA>-### (AREA = 3-4 letras mayusculas coherentes, p.ej. REQ-EXP-001). Prefijos REQ-<AREA> YA usados por otros features (elegi un AREA que NO este en esta lista, es el namespace del feature): $USED_PREFIXES
             (2) La lista de policies aprobadas por el router es: [$POLICIES]. Si NO esta vacia, cada REQ cita en su texto UNA policy de esa lista con su articulo (usa el bloque 'CAPA 0'). Si esta VACIA, el feature NO toca normativa: NO cites NINGUNA policy, NO menciones POL-xx, NO inventes leyes ni articulos, y deja 'policies: []' y la seccion 'Normas cumplidas' con 'Ninguna norma aplicable (sin datos personales)'. La CI BLOQUEA cualquier POL-xx que no este en [$POLICIES].
             (3) El .feature tiene EXACTAMENTE un Escenario por cada REQ, etiquetado con '@REQ-<AREA>-###' identico al del spec (el gate de cobertura exige 100%).
             (4) $STEPS_FILE debe recolectar y FALLAR (no pasar, no quedar undefined) todos los escenarios contra el STUB de $MODULE: es el rojo esperado antes de implementar.
-            (5) NO escribas la implementacion real en $MODULE (solo el stub descrito en D), NO toques ci/ ni .specify/memory/ ni otros features. Solo estos cuatro archivos." \
+            (5) NO escribas la implementacion real en $MODULE (solo el stub descrito en E), NO toques ci/ ni .specify/memory/ ni otros features. Solo estos cinco archivos." \
             2>&1 | tee aider_out.txt
 
       # 3b) OBSERVABILIDAD — costo real de redactar el spec.

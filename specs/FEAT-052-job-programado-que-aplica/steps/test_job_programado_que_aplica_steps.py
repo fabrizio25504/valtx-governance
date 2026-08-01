@@ -8,8 +8,8 @@ state = {}
 @given("que existen logs de acceso con fechas de retención vencidas")
 def setup_expired_logs():
     state["logs"] = [
-        {"id": 1, "user": "user1", "date": "2023-01-01", "expired": True},
-        {"id": 2, "user": "user2", "date": "2023-10-20", "expired": False}
+        {"id": "1", "user_id": "user1", "timestamp": "2023-01-01", "is_expired": True},
+        {"id": "2", "user_id": "user2", "timestamp": "2023-10-20", "is_expired": False}
     ]
 
 @when("el job programado se ejecuta")
@@ -19,13 +19,13 @@ def execute_job():
 @then("el sistema purga los registros de logs vencidos")
 def verify_purge():
     purged_logs = state["result"]
-    assert purged_logs == [{"id": 2, "user": "user2", "date": "2023-10-20", "expired": False}]
+    assert purged_logs == [{"id": "2", "user_id": "user2", "timestamp": "2023-10-20", "is_expired": False}]
 
 @given("que el titular solicita exportar su historial de accesos desde su perfil")
 def setup_export_request():
     state["user_id"] = "user1"
     state["history"] = [
-        {"id": 1, "user": "user1", "date": "2023-10-21", "action": "login"}
+        {"id": "1", "user_id": "user1", "timestamp": "2023-10-21", "action": "login"}
     ]
 
 @when("el sistema procesa la solicitud de exportación")
@@ -35,4 +35,4 @@ def process_export():
 @then("el sistema entrega los datos de acceso en un formato estructurado")
 def verify_export():
     export_data = state["export_result"]
-    assert export_data == [{"id": 1, "user": "user1", "date": "2023-10-21", "action": "login"}]
+    assert export_data == [{"id": "1", "user_id": "user1", "timestamp": "2023-10-21", "action": "login"}]

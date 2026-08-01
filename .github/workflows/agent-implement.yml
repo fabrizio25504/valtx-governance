@@ -39,8 +39,14 @@ jobs:
       #    issue de GitHub) y aquí se expande a "FEAT-044-data-export".
       - name: Resolver carpeta del feature
         run: |
+          # ID corto (FEAT-###), la misma clave que agent-specify.yml usa para
+          # token_meter. Sin esto, metrics/token_usage.jsonl termina con dos
+          # claves distintas para el mismo feature ("FEAT-052" del stage specify
+          # vs "FEAT-052-job-programado-que-aplica" del stage implement) y
+          # report() lo cuenta como si fueran dos features separados.
+          ID=$(echo "$FEATURE" | grep -oE 'FEAT-[0-9]+' | head -1)
+          echo "FEAT_ID=$ID" >> "$GITHUB_ENV"
           if [ ! -d "specs/$FEATURE" ]; then
-            ID=$(echo "$FEATURE" | grep -oE 'FEAT-[0-9]+' | head -1)
             D=$(ls -d specs/${ID}-*/ 2>/dev/null | head -1)
             if [ -n "$D" ]; then
               echo "FEATURE=$(basename "$D")" >> "$GITHUB_ENV"
@@ -85,17 +91,18 @@ jobs:
           READS="--read specs/$FEATURE/spec.md --read constitution_context.md"
           [ -f context_kb.md ] && READS="$READS --read context_kb.md"
           for f in specs/$FEATURE/*.feature; do [ -f "$f" ] && READS="$READS --read $f"; done
+          [ -f "specs/$FEATURE/contracts.yaml" ] && READS="$READS --read specs/$FEATURE/contracts.yaml"
           # Captura el output de aider (incluye su reporte de tokens/costo) para medirlo.
           aider --model "$AGENT_MODEL" --yes-always --no-auto-commit --no-check-update \
             --no-stream --no-analytics $READS \
-            --message "Completa la implementacion en el modulo declarado en el campo 'module:' del front-matter de specs/$FEATURE/spec.md (ya existe como STUB generado por agent-specify: firmas vacías que los step definitions de specs/$FEATURE/steps/ ya importan). Respeta esas firmas (nombres y parametros) — no las renombres ni cambies su ubicacion — y completa su cuerpo para cumplir los requisitos del feature segun spec.md y su .feature. Cumple TODAS las reglas de constitution_context.md: la CI las verifica y bloquea el merge si no se cumplen. NO modifiques .specify/memory/, ci/, ni otros features." \
+            --message "Completa la implementacion en el modulo declarado en el campo 'module:' del front-matter de specs/$FEATURE/spec.md (ya existe como STUB generado por agent-specify: firmas vacías que los step definitions de specs/$FEATURE/steps/ ya importan). specs/$FEATURE/contracts.yaml es el CONTRATO que manda: los nombres de campo de cada tipo, la firma (params/returns) de cada funcion, y la semantica del retorno descrita en su 'descripcion:' son la fuente de verdad — no las tuyas propias. Si el STUB o los step definitions difieren del contrato, es el CODIGO el que se corrige para calzar con el contrato, nunca al reves. Respeta esas firmas (nombres y parametros) — no las renombres ni cambies su ubicacion — y completa su cuerpo para cumplir los requisitos del feature segun spec.md, su .feature y el contrato. Cumple TODAS las reglas de constitution_context.md: la CI las verifica y bloquea el merge si no se cumplen. NO modifiques .specify/memory/, ci/, ni otros features." \
             2>&1 | tee aider_out.txt
 
       # 3b) OBSERVABILIDAD — mide tokens/costo REAL del run (dato para el modelo de costo).
       - name: Medir costo (token_meter)
         if: always()
         run: |
-          python ci/token_meter.py --feature "$FEATURE" --stage implement \
+          python ci/token_meter.py --feature "$FEAT_ID" --stage implement \
             --model "$AGENT_MODEL" --aider-log aider_out.txt --summary-out cost_comment.md || true
 
       # 4) Commit + PR → dispara el SDD Orchestrator (los gates)

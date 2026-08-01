@@ -1,0 +1,43 @@
+# Contrato de datos entre agent-specify y agent-implement.
+# El spec (EARS, castellano) no tiene nombres de campo — sin este archivo,
+# steps/ y el módulo de implementación inventan esquemas por separado y
+# terminan en desacuerdo (ver historial de FEAT-052: steps asumió
+# {id, user, date, expired}, el código implementó
+# {user_id, timestamp, action, ip_address, is_expired}; los dos escenarios
+# fallaron en Gate 5 modo CODE). Los nombres de campo y las firmas de abajo
+# son la única fuente de verdad: ni steps/ ni el módulo los inventan.
+
+module: src/job_programado_que_aplica.py
+
+tipos:
+  LogEntry:
+    id: str
+    user_id: str
+    timestamp: str        # ISO 8601
+    is_expired: bool
+  HistoryEntry:
+    id: str
+    user_id: str
+    timestamp: str         # ISO 8601
+    action: str
+
+funciones:
+  run_retention_job:
+    params:
+      logs: list[LogEntry]
+    returns: list[LogEntry]
+    descripcion: >
+      Devuelve los logs que se CONSERVAN tras aplicar la política de
+      retención (los que tienen is_expired=false). Los logs vencidos
+      (is_expired=true) son los que el job purga y NO aparecen en el
+      resultado — el retorno son los sobrevivientes, no los purgados.
+
+  export_access_history:
+    params:
+      user_id: str
+      history: list[HistoryEntry]
+    returns: list[HistoryEntry]
+    descripcion: >
+      Devuelve únicamente las HistoryEntry cuyo user_id coincide con el
+      titular solicitante, en el mismo formato estructurado que la entrada,
+      listas para exportación/portabilidad (POL-PE-ARCO-005).
