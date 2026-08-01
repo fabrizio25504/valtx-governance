@@ -50,7 +50,13 @@ jobs:
 
             echo "----- $f: $HITS/$TOTAL REQ implementados -----"
             if [ "$TOTAL" -gt 0 ] && [ "$HITS" -eq "$TOTAL" ]; then
-              # Todo REQ del spec está citado en src/ -> merge de CÓDIGO.
+              # Todo REQ del spec está citado en src/ -> merge de CÓDIGO. Pone
+              # estado: al día (draft -> implementado) con el MISMO criterio
+              # (HITS==TOTAL) que acabamos de usar para esta clasificación —
+              # ver ci/mark_implemented.py para por qué va acá y no en
+              # agent-implement.yml. Solo reescribe el archivo si hacía falta;
+              # el commit+push (si algo cambió) va junto al final del loop.
+              python ci/mark_implemented.py "$SPEC"
               python ci/update_notion.py --feature "$NAME" --status listo --pr-url "$URL" || true
               NUM=$(gh issue list --search "$f in:title" --state open --json number -q '.[0].number' || true)
               [ -n "$NUM" ] && gh issue close "$NUM" --comment "✅ **SDD**: mergeado a main. [commit]($URL)" || true
@@ -94,3 +100,19 @@ jobs:
               fi
             fi
           done
+
+          # Si mark_implemented.py tocó algún spec.md (código completo detectado
+          # en src/), confirma estado: en main en un solo commit. Con DISPATCH_PAT
+          # (no GITHUB_TOKEN) a propósito: dispara un push nuevo, que vuelve a
+          # correr esta misma workflow — segunda pasada idempotente (estado ya
+          # no es draft-like, mark_implemented.py no cambia nada, git diff da
+          # vacío, no hay tercer push).
+          if ! git diff --quiet -- specs/; then
+            git config user.name  "sdd-agent"
+            git config user.email "sdd-agent@valtx.pe"
+            git add specs/
+            git commit -m "chore(spec): estado -> implementado (código completo detectado en src/)"
+            git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+            git push origin HEAD:main
+            echo "spec.md actualizado(s) y empujado(s) a main."
+          fi

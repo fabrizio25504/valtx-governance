@@ -28,19 +28,32 @@ PASSED / FAILED / UNDEFINED / COLLECTION_ERROR, vía el reporte JUnit XML
 Ambos casos hay que distinguirlos de un assert real para dar un veredicto
 correcto en modo SPEC (ver más abajo).
 
-Dos modos, según `estado:` del front-matter del spec (mismo DRAFT_STATES que
-check_traceability.py):
+Dos modos. El modo NO depende únicamente de `estado:` del front-matter — ese
+campo es un flag declarativo que nada en el pipeline actualiza jamás (ni
+agent-specify ni agent-implement lo tocan): un feature con código real y
+funcionando puede quedar con `estado: draft` para siempre, y el gate lo
+evaluaría en modo SPEC eternamente. Eso pasó de verdad: el PR de código de
+un feature con 3 de 4 escenarios pasando (la implementación estaba bien)
+fue BLOQUEADO por "escenarios PASAN en modo SPEC" — el gate bloqueaba porque
+el código funcionaba, con el spec todavía en `draft` sin que nadie lo hubiera
+tocado. Por eso el modo se deriva de una señal más robusta, la misma que ya
+usa check_traceability.py (`implemented_any`): si CUALQUIER REQ de este spec
+ya está citado en src/, el feature entró en modo CODE, sin importar lo que
+diga `estado:`. `estado:` se sigue leyendo (para el mensaje y como señal
+adicional una vez que se pone al día post-merge — ver ci/mark_implemented.py),
+pero ya no es la única fuente de verdad:
 
-  SPEC (draft/borrador/...): el código todavía no existe -> los escenarios
-    TIENEN que fallar. BLOQUEA si hay COLLECTION_ERROR, UNDEFINED, si se
-    recolectaron 0 escenarios, o si ALGÚN escenario PASA (sin implementación,
-    un escenario en verde es un test que no verifica nada — el clásico
-    `assert True`. Es el único momento del ciclo en que se puede comprobar que
-    un test ES CAPAZ de fallar; no "corregir" esta regla sin entender por qué
-    existe).
+  SPEC (estado draft/borrador/... Y ningún REQ propio citado en src/):
+    el código todavía no existe -> los escenarios TIENEN que fallar. BLOQUEA
+    si hay COLLECTION_ERROR, UNDEFINED, si se recolectaron 0 escenarios, o si
+    ALGÚN escenario PASA (sin implementación, un escenario en verde es un
+    test que no verifica nada — el clásico `assert True`. Es el único momento
+    del ciclo en que se puede comprobar que un test ES CAPAZ de fallar; no
+    "corregir" esta regla sin entender por qué existe).
 
-  CODE (cualquier otro estado): BLOQUEA si falla algún escenario, si hay
-    COLLECTION_ERROR, UNDEFINED, o si se recolectaron 0 escenarios.
+  CODE (estado no-draft, O algún REQ propio ya citado en src/): BLOQUEA si
+    falla algún escenario, si hay COLLECTION_ERROR, UNDEFINED, o si se
+    recolectaron 0 escenarios.
 
 Features listados en .specify/memory/legacy_features.txt están exentos de este
 gate (advierte y sale 0) — siguen pasando por los gates 1-4. Ese archivo vive
@@ -60,7 +73,20 @@ ROOT = os.path.join(os.path.dirname(__file__), "..")
 LEGACY_FILE = os.path.join(ROOT, ".specify", "memory", "legacy_features.txt")
 
 sys.path.insert(0, os.path.dirname(__file__))
-from check_traceability import DRAFT_STATES, spec_estado  # mismo criterio spec-first que Gate 3
+# declared_reqs/scan_code: mismo cálculo de implemented_any que Gate 3, para
+# derivar el modo de una señal real (REQ citado en src/) y no solo de estado:
+from check_traceability import DRAFT_STATES, spec_estado, declared_reqs, scan_code
+
+SRC_DIR = "src"  # mismo criterio que run_gates.py/sdd-orchestrator.yml: invocado desde la raíz del repo
+
+
+def implemented_any(spec_path):
+    """¿Algún REQ de ESTE spec ya está citado en src/? Igual que check_traceability.py:
+    es la señal de que el feature entró en modo CODE de verdad, sin depender de que
+    algún paso del pipeline se haya acordado de actualizar estado:."""
+    decl = declared_reqs(spec_path)
+    cited, _ = scan_code(SRC_DIR)
+    return bool(decl & cited)
 
 UNDEFINED_MARK = "StepDefinitionNotFoundError"
 # Marcas del traceback que delatan un COLLECTION_ERROR originado en el .feature
@@ -150,7 +176,8 @@ def main(spec_path, feature_dir):
         return 0
 
     estado = spec_estado(spec_path)
-    mode = "SPEC" if (estado in DRAFT_STATES) else "CODE"
+    impl_any = implemented_any(spec_path)
+    mode = "SPEC" if (estado in DRAFT_STATES and not impl_any) else "CODE"
     steps_dir = os.path.join(feature_dir, "steps")
 
     rc_pytest, output, junit_path = run_pytest(steps_dir)
@@ -159,7 +186,7 @@ def main(spec_path, feature_dir):
         os.remove(junit_path)
 
     print(f"\n=== Gate de ejecución Gherkin — modo {mode} (estado spec: {estado or '—'}, "
-          f"{len(scenarios)} escenario(s)) ===")
+          f"REQ citado en src/: {'sí' if impl_any else 'no'}, {len(scenarios)} escenario(s)) ===")
 
     if rc_pytest is None:
         print(f"  ✗ no existe {steps_dir}/ — 0 escenarios recolectados.")
