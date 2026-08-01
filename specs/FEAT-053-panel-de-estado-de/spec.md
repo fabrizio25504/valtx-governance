@@ -4,7 +4,7 @@ titulo: Panel de estado de consentimiento del titular
 tags: [cuenta, perfil, marketing, almacenamiento, cifrado]
 policies: [POL-PE-ARCO-005, POL-PE-CONSENT-001, POL-PE-SEG-006, POL-PE-MINIM-004]
 owner: producto@valtx.pe
-estado: implementado
+estado: draft
 module: src/panel_de_estado_de.py
 ---
 
