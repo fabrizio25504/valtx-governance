@@ -4,7 +4,7 @@ from src.panel_de_estado_de import (
     revoke_marketing_consent,
     save_encrypted_consent_record,
     verify_minimization_fields,
-    _get_cipher,
+    _encrypted_storage,
 )
 
 scenarios("../panel-de-estado-de.feature")
@@ -52,23 +52,29 @@ def check_revocation_log():
 
 @given('un sistema que almacena registros de consentimiento')
 def setup_storage_system():
-    # save_encrypted_consent_record verifica que encrypted_data sea un cifrado
-    # REAL (intenta descifrarlo) — un string arbitrario nunca es un token Fernet
-    # válido y hace fallar el escenario sin importar la clave. Se cifra acá con
-    # el mismo _get_cipher() que usa el módulo, para que el round-trip sea real.
-    encrypted_data = _get_cipher().encrypt(b"consent-log-payload").decode()
-    state["record"] = {
-        "record_id": "rec-001",
-        "encrypted_data": encrypted_data
+    # Dato literal EN CLARO — cifrarlo es responsabilidad de save_encrypted_consent_record
+    # (REQ-PAN-003 dice "THE SYSTEM SHALL cifrar"), no de este fixture.
+    state["plaintext_payload"] = "consent-log-payload"
+    state["record_id"] = "rec-001"
+    state["entry"] = {
+        "record_id": state["record_id"],
+        "payload": state["plaintext_payload"],
     }
 
 @when('se guarda un nuevo registro de consentimiento o revocación')
 def perform_save_record():
-    state["save_result"] = save_encrypted_consent_record(state["record"])
+    state["save_result"] = save_encrypted_consent_record(state["entry"])
 
 @then('el sistema persiste el registro aplicando cifrado en reposo')
 def check_persisted_encrypted():
     assert state["save_result"] is True
+    stored = [r for r in _encrypted_storage if r["record_id"] == state["record_id"]]
+    assert stored, "no se encontró el registro persistido en el almacenamiento"
+    encrypted_data = stored[-1]["encrypted_data"]
+    # Un cifrador no-op (que devuelve el dato tal cual) tiene que hacer FALLAR
+    # este assert — si no, el escenario no verifica que se haya cifrado nada.
+    assert encrypted_data != state["plaintext_payload"], "lo persistido es igual al texto en claro — no se cifró"
+    assert state["plaintext_payload"] not in encrypted_data, "el texto en claro aparece dentro de lo persistido"
 
 @given('un empleado que accede al panel de consentimiento')
 def setup_employee_access():

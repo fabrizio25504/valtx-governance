@@ -68,20 +68,18 @@ def revoke_marketing_consent(account):
     if "sms" in record["accepted_channels"]:
         record["accepted_channels"].remove("sms")
     
-    # Create and save encrypted log
+    # Create and save the log — EN CLARO: save_encrypted_consent_record es quien cifra.
     log_data = {
         "action": "revoke_marketing",
         "account": account,
         "timestamp": datetime.now().isoformat()
     }
     record_id = f"rec-{len(_encrypted_storage) + 1}"
-    encrypted_data = _get_cipher().encrypt(json.dumps(log_data).encode()).decode()
-    
-    storage_record = {
+    entry = {
         "record_id": record_id,
-        "encrypted_data": encrypted_data
+        "payload": json.dumps(log_data)
     }
-    save_encrypted_consent_record(storage_record)
+    save_encrypted_consent_record(entry)
     
     return {
         "account": account,
@@ -89,17 +87,17 @@ def revoke_marketing_consent(account):
         "encrypted_log_id": record_id
     }
 
-def save_encrypted_consent_record(record):
-    # REQ-PAN-003: THE SYSTEM SHALL cifrar los registros de consentimiento y revocación en el almacenamiento en reposo.
+def save_encrypted_consent_record(entry):
+    # REQ-PAN-003: THE SYSTEM SHALL cifrar los registros de consentimiento y revocación
+    # en el almacenamiento en reposo. `entry["payload"]` llega EN CLARO — cifrarlo es
+    # responsabilidad de ESTA función, no de quien la llama (ver contracts.yaml).
     # POL-PE-SEG-006: Cumple la seguridad del tratamiento
     try:
-        # Verify that the data is actually encrypted by attempting decryption
-        cipher = _get_cipher()
-        cipher.decrypt(record["encrypted_data"].encode())
-        _encrypted_storage.append(record)
-        return True
+        encrypted_data = _get_cipher().encrypt(entry["payload"].encode()).decode()
     except Exception:
         return False
+    _encrypted_storage.append({"record_id": entry["record_id"], "encrypted_data": encrypted_data})
+    return True
 
 def verify_minimization_fields(account, marketing_status):
     # REQ-PAN-004: THE SYSTEM SHALL capturar el mínimo de campos necesarios para identificar la cuenta y el estado del canal de marketing.
