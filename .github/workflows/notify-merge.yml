@@ -9,15 +9,29 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: read
-  issues: write
+  contents: read  # el único push (mark_implemented) va autenticado con DISPATCH_PAT, no con
+                  # el GITHUB_TOKEN por defecto — este permissions: no necesita write. Las
+                  # llamadas a `gh` (issues, labels) también van con GH_TOKEN=DISPATCH_PAT
+                  # más abajo, así que tampoco hace falta `issues: write` acá.
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
+      # token: DISPATCH_PAT (no el default) — actions/checkout@v4 persiste credenciales
+      # (persist-credentials: true por defecto) escribiendo un header
+      # `http.https://github.com/.extraheader` con lo que sea que se le haya pasado como
+      # token, y ESE header tiene precedencia sobre cualquier credencial embebida después
+      # en la URL del remoto vía `git remote set-url`. Con el checkout por defecto (token
+      # implícito = GITHUB_TOKEN), no importa qué token le pongas al `git push` más abajo:
+      # git sigue autenticando como github-actions[bot] por el extraheader, y el push
+      # muere con 403 (el bot no tiene permiso de escribir en main). Pasarle el PAT ACÁ,
+      # en el checkout, es la única forma de que el extraheader (y por lo tanto el push)
+      # quede autenticado como el usuario del PAT desde el principio.
       - uses: actions/checkout@v4
-        with: { fetch-depth: 2 }
+        with:
+          fetch-depth: 2
+          token: ${{ secrets.DISPATCH_PAT }}
       - uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - run: pip install -r requirements.txt
@@ -102,17 +116,19 @@ jobs:
           done
 
           # Si mark_implemented.py tocó algún spec.md (código completo detectado
-          # en src/), confirma estado: en main en un solo commit. Con DISPATCH_PAT
-          # (no GITHUB_TOKEN) a propósito: dispara un push nuevo, que vuelve a
-          # correr esta misma workflow — segunda pasada idempotente (estado ya
-          # no es draft-like, mark_implemented.py no cambia nada, git diff da
-          # vacío, no hay tercer push).
+          # en src/), confirma estado: en main en un solo commit. El push queda
+          # autenticado como el usuario del PAT porque el checkout de arriba ya
+          # se hizo con token: DISPATCH_PAT (no hace falta remote set-url ni
+          # embeber el token en la URL — ver comentario en el paso de checkout).
+          # Con DISPATCH_PAT (no GITHUB_TOKEN) a propósito: dispara un push
+          # nuevo, que vuelve a correr esta misma workflow — segunda pasada
+          # idempotente (estado ya no es draft-like, mark_implemented.py no
+          # cambia nada, git diff da vacío, no hay tercer push).
           if ! git diff --quiet -- specs/; then
             git config user.name  "sdd-agent"
             git config user.email "sdd-agent@valtx.pe"
             git add specs/
             git commit -m "chore(spec): estado -> implementado (código completo detectado en src/)"
-            git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
             git push origin HEAD:main
             echo "spec.md actualizado(s) y empujado(s) a main."
           fi
