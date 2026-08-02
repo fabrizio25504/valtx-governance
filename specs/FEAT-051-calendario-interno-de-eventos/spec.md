@@ -4,7 +4,7 @@ titulo: Calendario interno de eventos
 tags: [formulario, purga, retencion, registro]
 policies: [POL-PE-MINIM-004, POL-PE-CONSENT-001]
 owner: producto@valtx.pe
-estado: draft
+estado: implementado
 ---
 
 # Feature Specification: Calendario interno de eventos
