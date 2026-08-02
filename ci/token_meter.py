@@ -134,6 +134,8 @@ def main():
     ap.add_argument("--out", dest="tout", type=int, default=0)
     ap.add_argument("--aider-log", default="")
     ap.add_argument("--summary-out", default="")
+    ap.add_argument("--router-modo", default=None,
+                     help="modo del router de Capa 0 (HIBRIDO/DETERMINISTA/DEGRADADO), si aplica a este stage")
     a = ap.parse_args()
 
     if a.report:
@@ -150,6 +152,11 @@ def main():
     rec = {"feature": a.feature, "stage": a.stage, "model": a.model,
            "in": tin, "out": tout, "usd": round(usd, 6),
            "cost_source": "aider" if cost is not None else "estimado"}
+    if a.router_modo:
+        # queda en el mismo JSONL que se lee para consumo/costo, así una corrida con
+        # el pase semántico degradado (Capa 0) no depende del log de Actions (90 días,
+        # no descargable sin permisos de admin) para saber que no fue HIBRIDA.
+        rec["router_modo"] = a.router_modo
 
     os.makedirs(os.path.dirname(LOG), exist_ok=True)
     with open(LOG, "a", encoding="utf-8") as f:

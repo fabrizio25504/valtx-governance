@@ -182,7 +182,8 @@ jobs:
         if: always() && env.SPEC_DIR != ''
         run: |
           python ci/token_meter.py --feature "$FEAT_ID" --stage specify \
-            --model "$AGENT_MODEL" --aider-log aider_out.txt --summary-out cost_comment.md || true
+            --model "$AGENT_MODEL" --aider-log aider_out.txt --summary-out cost_comment.md \
+            --router-modo "$ROUTER_MODO" || true
 
       # 4) PR para revisión humana (con PAT personal → evita la restricción org de Actions).
       - name: Abrir PR del spec

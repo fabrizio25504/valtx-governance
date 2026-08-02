@@ -78,6 +78,7 @@ def call_model(prompt, matched, cards):
         json={
             "model": MODEL,
             "temperature": 0,
+            "max_tokens": 900,
             "messages": [{"role": "system", "content": sys_msg},
                          {"role": "user", "content": user_msg}],
         },
@@ -86,7 +87,13 @@ def call_model(prompt, matched, cards):
     )
     r.raise_for_status()
     content = r.json()["choices"][0]["message"]["content"]
-    return json.loads(_strip_fences(content))
+    try:
+        return json.loads(_strip_fences(content))
+    except json.JSONDecodeError as e:
+        # GLM-5.2 tiene sangrado documentado de caracteres chinos en texto español — un
+        # carácter suelto rompe json.loads. Sin el fragmento crudo, esto se ve idéntico
+        # a un modelo que devolvió prosa en vez de JSON.
+        raise RuntimeError(f"JSON inválido del modelo ({e}): {content[:300]!r}") from e
 
 
 def route_hybrid(prompt):
@@ -94,7 +101,8 @@ def route_hybrid(prompt):
     cards = pr.load_cards()
     matched = pr.route(prompt)
     by_id = {c["id"]: c for c in cards}
-    matched_ids = {c["id"] for c, _ in matched}
+    det_ids = {c["id"] for c, _ in matched}
+    matched_ids = set(det_ids)
 
     detalle = [{"id": c["id"], "origen": "determinista", "enforcement": c.get("enforcement"),
                 "triggers_hit": hits, "principio": c.get("mapea_principio")}
@@ -113,16 +121,19 @@ def route_hybrid(prompt):
                 c = by_id.get(cid)
                 if not c or cid in matched_ids:
                     continue  # id inexistente (alucinación) o ya cubierto por el determinista
-                # ponytail: las policies agregadas por el modelo no aportan tags — `tags`
-                # sigue significando "lo que matcheó literalmente" y el puente
-                # mapea_principio (que va por `policies`, no por `tags`) sigue funcionando.
+                # las policies agregadas por el modelo no aportan tags — `tags` sigue
+                # significando "lo que matcheó literalmente" y el puente mapea_principio
+                # (que va por `policies`, no por `tags`) sigue funcionando.
                 detalle.append({"id": cid, "origen": "semantico", "enforcement": c.get("enforcement"),
                                  "razon": item.get("razon", ""), "principio": c.get("mapea_principio")})
                 policies.append(cid)
                 matched_ids.add(cid)
             for item in resp.get("dudosas", []):
                 cid = item.get("id")
-                if cid in matched_ids and by_id.get(cid):
+                # contra det_ids, no matched_ids: "dudosa" significa "el DETERMINISTA
+                # eligió esto y creo que se equivocó" — si el modelo la propuso él mismo
+                # vía `aplica` no es una objeción al determinista, es contradecirse solo.
+                if cid in det_ids and by_id.get(cid):
                     advertencias.append({"id": cid, "razon": item.get("razon", ""),
                                           "nota": "se MANTIENE, revisar a mano"})
         except Exception as e:
@@ -174,11 +185,16 @@ def as_md(prompt, result):
 
 def run_eval():
     print("# A/B determinista vs híbrido\n")
-    print("# ponytail: el cuerpo del spec.md NO es el prompt original que generó el feature,")
-    print("# así que las filas de features viejos no reproducen lo registrado en su día —")
-    print("# sirve para el A/B de hoy, no como reconstrucción histórica.\n")
+    print("# el cuerpo del spec.md NO es el prompt original que generó el feature, así que")
+    print("# las filas de features viejos no reproducen lo registrado en su día — sirve")
+    print("# para el A/B de hoy, no como reconstrucción histórica.\n")
     cases = list(EVAL_CASES)
-    for spec_path in sorted(glob.glob("specs/*/spec.md")):
+    spec_glob = os.path.join(pr.ROOT, "specs", "*", "spec.md")
+    spec_paths = sorted(glob.glob(spec_glob))
+    if not spec_paths:
+        print(f"⚠ AVISO: 0 specs encontrados en {os.path.abspath(spec_glob)} — la tabla de "
+              f"abajo SOLO tiene los {len(EVAL_CASES)} casos hardcodeados, está incompleta.\n")
+    for spec_path in spec_paths:
         feat = os.path.basename(os.path.dirname(spec_path))
         body = open(spec_path, encoding="utf-8").read()
         body = re.sub(r"^---.*?---\s*\n", "", body, flags=re.S)  # sin front-matter
@@ -231,6 +247,18 @@ def _selftest():
         result2 = route_hybrid(det_trigger)
         assert result2["modo"] == "DEGRADADO"
         assert det_id in result2["policies"], "degradado no debe perder el piso determinista"
+
+        # Fix 5: el modelo propone la MISMA card en 'aplica' y 'dudosas'. No es una
+        # objeción al determinista (que nunca la eligió) — es el modelo contradiciéndose
+        # solo, y no debe generar advertencia.
+        call_model = lambda prompt, matched, cards: {
+            "aplica": [{"id": other_id, "razon": "agregada por el mock"}],
+            "dudosas": [{"id": other_id, "razon": "el mock se contradice"}],
+        }
+        result3 = route_hybrid(det_trigger)
+        assert other_id in result3["policies"], "sigue agregándose por 'aplica'"
+        assert not any(a["id"] == other_id for a in result3["advertencias"]), \
+            "no debe advertir sobre una card que el propio modelo agregó (no la eligió el determinista)"
     finally:
         call_model = original
     print("selftest OK")
