@@ -101,14 +101,22 @@ jobs:
             -d "{\"properties\":{\"Feature ID\":{\"rich_text\":[{\"text\":{\"content\":\"$FEAT_ID\"}}]}}}" \
             -o /dev/null -w "[notion] Feature ID=$FEAT_ID → HTTP %{http_code}\n"
 
-      # 2) CAPA 0 — router determinista: qué Policy Cards aplican a este prompt (0 tokens LLM).
+      # 2) CAPA 0 — router híbrido: determinista (triggers, 0 tokens) + pase semántico
+      # opcional que solo AGREGA cobertura, nunca resta lo que el determinista disparó
+      # (ver ci/semantic_router.py). Una sola invocación: el md va a stdout, el JSON
+      # estructurado a capa0.json, y de ahí derivamos TAGS/POLICIES/ROUTER_MODO — así
+      # evitamos 3 llamadas al modelo por feature (una por --format que se necesitaba).
       - name: Router de aplicabilidad (Capa 0)
         if: env.SPEC_DIR != ''
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          SDD_ROUTER_SEMANTIC: ${{ vars.SDD_ROUTER_SEMANTIC || '1' }}
         run: |
           mkdir -p "$SPEC_DIR/steps"
-          python ci/policy_router.py --prompt "$PROMPT" > capa0_context.md
-          echo "TAGS=$(python ci/policy_router.py --prompt "$PROMPT" --format tags)" >> "$GITHUB_ENV"
-          echo "POLICIES=$(python ci/policy_router.py --prompt "$PROMPT" --format json | python -c 'import sys,json;print(",".join(json.load(sys.stdin)["policies"]))')" >> "$GITHUB_ENV"
+          python ci/semantic_router.py --prompt "$PROMPT" --json-out capa0.json > capa0_context.md
+          echo "TAGS=$(python -c 'import json;print(",".join(json.load(open("capa0.json"))["tags"]))')" >> "$GITHUB_ENV"
+          echo "POLICIES=$(python -c 'import json;print(",".join(json.load(open("capa0.json"))["policies"]))')" >> "$GITHUB_ENV"
+          echo "ROUTER_MODO=$(python -c 'import json;print(json.load(open("capa0.json"))["modo"])')" >> "$GITHUB_ENV"
           echo "----- Capa 0 -----"; cat capa0_context.md
 
       # 2b) Prefijos de REQ ya usados por otros features — cálculo determinista (grep,
@@ -186,7 +194,7 @@ jobs:
           git config user.email "sdd-agent@valtx.pe"
           BRANCH="spec/${FEAT_ID}-${GITHUB_RUN_ID}"
           git checkout -b "$BRANCH"
-          rm -f aider_out.txt capa0_context.md
+          rm -f aider_out.txt capa0_context.md capa0.json
           git add -A
           git commit -m "spec(${FEAT_ID}): borrador generado por agente (${AGENT_MODEL})" || { echo "sin cambios"; exit 0; }
           git push -u origin "$BRANCH"

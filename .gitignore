@@ -11,3 +11,5 @@ metrics/*
 .opencode/
 .claude/skills_disabled/
 constitution_context.md
+capa0_context.md
+capa0.json
