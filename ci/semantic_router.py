@@ -48,6 +48,13 @@ def _compact_catalog(cards):
             for c in cards]
 
 
+def _razon(r, maxlen=180):
+    if not r or not r.strip():
+        return "(sin razón)"
+    r = r.strip()
+    return r if len(r) <= maxlen else r[:maxlen].rstrip() + "…"
+
+
 def _strip_fences(s):
     s = s.strip()
     m = re.search(r"```(?:json)?\s*(.*?)```", s, re.S)
@@ -205,14 +212,25 @@ def run_eval():
     for name, prompt in cases:
         result = route_hybrid(prompt)
         det = [d["id"] for d in result["detalle"] if d["origen"] == "determinista"]
-        sem = [d["id"] for d in result["detalle"] if d["origen"] == "semantico"]
-        warn = [a["id"] for a in result["advertencias"]]
+        sem = [d for d in result["detalle"] if d["origen"] == "semantico"]
+        warn = result["advertencias"]
         did_change = bool(sem or warn)
         changed += did_change
+        degraded = result["modo"] == "DEGRADADO"
         print(f"## {name} [{result['modo']}]")
-        print(f"  determinista: {det or '(ninguna)'}")
-        print(f"  + semántico:  {sem or '(nada agregado)'}")
-        print(f"  advertencias: {warn or '(ninguna)'}")
+        print(f"  determinista: {', '.join(det) if det else '(ninguna)'}")
+        if degraded:
+            # el modelo no respondió: no es lo mismo que "corrió y no agregó nada" —
+            # esa distinción es el hallazgo que motivó el fix de DEGRADADO visible.
+            print("  + semántico:  (modelo no respondió — DEGRADADO, ver stderr)")
+            print("  advertencias: (modelo no respondió — DEGRADADO, ver stderr)")
+        else:
+            print("  + semántico:  (nada agregado)" if not sem else "  + semántico:")
+            for d in sem:
+                print(f"      {d['id']} — {_razon(d.get('razon'))}")
+            print("  advertencias:  (ninguna)" if not warn else "  advertencias:")
+            for a in warn:
+                print(f"      {a['id']} — {_razon(a.get('razon'))}")
         print()
     print(f"Total: {len(cases)} casos, el pase semántico cambió algo en {changed}.")
 
